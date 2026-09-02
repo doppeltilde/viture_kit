@@ -7,10 +7,8 @@ headers:
   entry-points:
     - 'src/include/viture_glasses_provider.h'
     - 'src/include/viture_device.h'
-    - 'src/viture_bridge.h'
   include-directives:
     - 'src/include/*.h'
-    - 'src/viture_bridge.h'
 
 compiler-opts:
   - '-Isrc/include'
@@ -24,7 +22,6 @@ comments:
 functions:
   include:
     - 'xr_.*'
-    - 'viture_bridge_.*'
 structs:
   include:
     - 'xr_.*'

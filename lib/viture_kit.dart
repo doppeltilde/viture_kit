@@ -5,39 +5,47 @@ import 'dart:isolate';
 
 import 'viture_kit_bindings_generated.dart' as bindings;
 
-/// Formatted IMU sensor data read from the glasses.
-class VitureImuData {
-  final double gyroX;
-  final double gyroY;
-  final double gyroZ;
-  final double accelX;
-  final double accelY;
-  final double accelZ;
+class ViturePoseData {
+  final double roll;
+  final double pitch;
+  final double yaw;
+  final double quatW;
+  final double quatX;
+  final double quatY;
+  final double quatZ;
   final int timestamp;
 
-  const VitureImuData({
-    required this.gyroX,
-    required this.gyroY,
-    required this.gyroZ,
-    required this.accelX,
-    required this.accelY,
-    required this.accelZ,
+  const ViturePoseData({
+    required this.roll,
+    required this.pitch,
+    required this.yaw,
+    required this.quatW,
+    required this.quatX,
+    required this.quatY,
+    required this.quatZ,
     required this.timestamp,
   });
 
   @override
   String toString() =>
-      'VitureImuData(gyro: [$gyroX, $gyroY, $gyroZ], accel: [$accelX, $accelY, $accelZ], ts: $timestamp)';
+      'ViturePoseData(PRY: [$pitch, $roll, $yaw], Quat: [$quatW, $quatX, $quatY, $quatZ], ts: $timestamp)';
 }
 
-/// Product IDs for VITURE XR Glasses models.
 abstract class VitureProductId {
   static const int vitureOne = 0x35CA;
   static const int viturePro = 0x35CB;
   static const int viturePro2 = 0x1301;
 }
 
-/// IMU constants matching VITURE protocol.
+abstract class VitureDisplayMode {
+  static const int mode1920x1200_120Hz = 0;
+  static const int mode3840x1200_90Hz = 1;
+}
+
+abstract class VitureDeviceType {
+  static const int carina = 1;
+}
+
 abstract class VitureImuMode {
   static const int raw = 0;
   static const int pose = 1;
@@ -63,15 +71,13 @@ class VitureKit {
   Isolate? _workerIsolate;
   ReceivePort? _receivePort;
   SendPort? _commandPort;
-  StreamController<VitureImuData>? _imuController;
+  StreamController<ViturePoseData>? _poseController;
 
-  /// Public broadcast stream exposing IMU data updates.
-  Stream<VitureImuData> get imuStream {
-    _imuController ??= StreamController<VitureImuData>.broadcast();
-    return _imuController!.stream;
+  Stream<ViturePoseData> get poseStream {
+    _poseController ??= StreamController<ViturePoseData>.broadcast();
+    return _poseController!.stream;
   }
 
-  /// Resolve dynamic library location for macOS.
   static String _resolveDylibPath() {
     if (Platform.isMacOS) {
       return 'glasses.framework/glasses';
@@ -81,7 +87,6 @@ class VitureKit {
     );
   }
 
-  /// Start the hardware reader pipeline on a background isolate.
   Future<void> start({int productId = VitureProductId.viturePro2}) async {
     if (_workerIsolate != null) return;
 
@@ -92,14 +97,15 @@ class VitureKit {
       if (message is SendPort) {
         _commandPort = message;
       } else if (message is Map<String, dynamic>) {
-        _imuController?.add(
-          VitureImuData(
-            gyroX: message['gyroX'] as double,
-            gyroY: message['gyroY'] as double,
-            gyroZ: message['gyroZ'] as double,
-            accelX: message['accelX'] as double,
-            accelY: message['accelY'] as double,
-            accelZ: message['accelZ'] as double,
+        _poseController?.add(
+          ViturePoseData(
+            roll: message['roll'] as double,
+            pitch: message['pitch'] as double,
+            yaw: message['yaw'] as double,
+            quatW: message['quatW'] as double,
+            quatX: message['quatX'] as double,
+            quatY: message['quatY'] as double,
+            quatZ: message['quatZ'] as double,
             timestamp: message['timestamp'] as int,
           ),
         );
@@ -112,97 +118,145 @@ class VitureKit {
     );
   }
 
-  /// Worker task executed in worker isolate.
   static void _backgroundSensorWorker(_IsolateInitConfig config) {
     final commandPort = ReceivePort();
     config.sendPort.send(commandPort.sendPort);
 
-    // 1. Open dynamic library & bind API
     final dylib = ffi.DynamicLibrary.open(config.dylibPath);
     final api = bindings.VitureKitBindings(dylib);
 
-    // 2. Create device provider instance
     final provider = api.xr_device_provider_create(config.productId);
     if (provider == ffi.nullptr) {
       return;
     }
 
-    // 3. Initialize & Start provider
-    api.xr_device_provider_initialize(provider, ffi.nullptr, ffi.nullptr);
-    api.xr_device_provider_start(provider);
+    final deviceType = api.xr_device_provider_get_device_type(provider);
 
-    sleep(const Duration(milliseconds: 1000));
+    if (api.xr_device_provider_initialize(provider, ffi.nullptr, ffi.nullptr) !=
+        0) {
+      api.xr_device_provider_destroy(provider);
+      return;
+    }
 
-    // 4. Bind raw IMU callback using exact generated type signature
-    final nativeCallback =
-        ffi.NativeCallable<bindings.VitureImuRawCallbackFunction>.listener((
-          ffi.Pointer<ffi.Float> dataPtr,
-          int timestamp,
-          int vsync,
-        ) {
-          if (dataPtr == ffi.nullptr) return;
+    // Switch display resolution to 3840x1200 3D Mode before starting streams
+    api.xr_device_provider_set_display_mode(
+      provider,
+      VitureDisplayMode.mode3840x1200_90Hz,
+    );
 
-          // Parse float array layout:
-          // [0..2] -> Gyro X, Y, Z
-          // [3..5] -> Accel X, Y, Z
-          final gyroX = dataPtr[0];
-          final gyroY = dataPtr[1];
-          final gyroZ = dataPtr[2];
-          final accelX = dataPtr[3];
-          final accelY = dataPtr[4];
-          final accelZ = dataPtr[5];
-          final magX = dataPtr[6];
-          final magY = dataPtr[7];
-          final magZ = dataPtr[8];
-          final temperature = dataPtr[9];
+    sleep(const Duration(milliseconds: 500));
 
-          config.sendPort.send({
-            'gyroX': gyroX,
-            'gyroY': gyroY,
-            'gyroZ': gyroZ,
-            'accelX': accelX,
-            'accelY': accelY,
-            'accelZ': accelZ,
-            'timestamp': timestamp,
-            "magX": magX,
-            "magY": magY,
-            "magZ": magZ,
-            "temperature": temperature,
+    if (api.xr_device_provider_start(provider) != 0) {
+      api.xr_device_provider_shutdown(provider);
+      api.xr_device_provider_destroy(provider);
+      return;
+    }
+
+    bool isRunning = true;
+    ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? nativeCallback;
+
+    if (deviceType == VitureDeviceType.carina) {
+      // Carina 6DoF Pose Polling via GL Pose
+      Isolate.spawn<List<dynamic>>((args) {
+        final SendPort sendPort = args[0];
+        final int providerAddr = args[1];
+        final String dylibPath = args[2];
+
+        final childDylib = ffi.DynamicLibrary.open(dylibPath);
+        final childApi = bindings.VitureKitBindings(childDylib);
+        final childProvider = ffi.Pointer<ffi.Void>.fromAddress(providerAddr);
+
+        final poseArray = ffi.calloc<ffi.Float>(7);
+        final statusPtr = ffi.calloc<ffi.Int>();
+
+        while (true) {
+          final res = childApi.xr_device_provider_get_gl_pose_carina(
+            childProvider,
+            poseArray,
+            0.0,
+            statusPtr,
+          );
+
+          if (res == 0) {
+            sendPort.send({
+              'roll': poseArray[0],
+              'pitch': poseArray[1],
+              'yaw': poseArray[2],
+              'quatW': poseArray[3],
+              'quatX': poseArray[4],
+              'quatY': poseArray[5],
+              'quatZ': poseArray[6],
+              'timestamp': DateTime.now().microsecondsSinceEpoch,
+            });
+          }
+          sleep(const Duration(milliseconds: 10)); // ~100Hz
+        }
+      }, [config.sendPort, provider.address, config.dylibPath]);
+    } else {
+      // Standard IMU Pose Callback
+      nativeCallback =
+          ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>.listener((
+            ffi.Pointer<ffi.Float> dataPtr,
+            int timestamp,
+          ) {
+            if (!isRunning || dataPtr == ffi.nullptr) return;
+
+            config.sendPort.send({
+              'roll': dataPtr[0],
+              'pitch': dataPtr[1],
+              'yaw': dataPtr[2],
+              'quatW': dataPtr[3],
+              'quatX': dataPtr[4],
+              'quatY': dataPtr[5],
+              'quatZ': dataPtr[6],
+              'timestamp': timestamp,
+            });
           });
-        });
 
-    // 5. Register callback and open IMU stream (Raw mode @ 60Hz)
-    api.xr_device_provider_register_imu_raw_callback(
-      provider,
-      nativeCallback.nativeFunction,
-    );
-    api.xr_device_provider_open_imu(
-      provider,
-      VitureImuMode.pose,
-      VitureImuFrequency.freq60Hz,
-    );
+      api.xr_device_provider_register_imu_pose_callback(
+        provider,
+        nativeCallback.nativeFunction,
+      );
 
-    // 6. Listen for cleanup commands from main isolate
+      api.xr_device_provider_open_imu(
+        provider,
+        VitureImuMode.pose,
+        VitureImuFrequency.freq60Hz,
+      );
+    }
+
     commandPort.listen((message) {
       if (message == _ControlCommand.stop) {
-        api.xr_device_provider_close_imu(provider, VitureImuMode.raw);
+        isRunning = false;
+
+        if (deviceType != VitureDeviceType.carina) {
+          api.xr_device_provider_close_imu(provider, VitureImuMode.pose);
+        }
+
+        // Revert display back to standard 1920x1200
+        api.xr_device_provider_set_display_mode(
+          provider,
+          VitureDisplayMode.mode1920x1200_120Hz,
+        );
+        sleep(const Duration(milliseconds: 1000));
+
         api.xr_device_provider_stop(provider);
         api.xr_device_provider_shutdown(provider);
         api.xr_device_provider_destroy(provider);
-        nativeCallback.close();
+
+        nativeCallback?.close();
         commandPort.close();
         Isolate.exit();
       }
     });
   }
 
-  /// Gracefully shutdown hardware streams and isolates.
   Future<void> stop() async {
     _commandPort?.send(_ControlCommand.stop);
     _receivePort?.close();
-    _imuController?.close();
+    _poseController?.close();
     _workerIsolate = null;
-    _imuController = null;
+    _poseController = null;
     _commandPort = null;
   }
 }

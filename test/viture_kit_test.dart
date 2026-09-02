@@ -17,16 +17,16 @@ void main() {
     await vitureKit.start();
 
     // Verify stream emits at least one valid VitureImuData object
-    expect(vitureKit.imuStream, emits(isA<VitureImuData>()));
+    expect(vitureKit.poseStream, emits(isA<ViturePoseData>()));
   });
 
   test('imu stream data contains non-null sensor fields', () async {
     await vitureKit.start();
 
-    final data = await vitureKit.imuStream.first;
+    final data = await vitureKit.poseStream.first;
 
     expect(data.timestamp, isA<int>());
-    expect(data.gyroX, isA<double>());
-    expect(data.accelX, isA<double>());
+    expect(data.quatX, isA<double>());
+    expect(data.quatY, isA<double>());
   });
 }

@@ -31,8 +31,6 @@ void main(List<String> args) async {
     output.assets.code.add(
       CodeAsset(
         package: input.packageName,
-        // This becomes the asset ID: package:viture_sensors/...
-        // Use a stable, simple name
         name: 'libglasses',
         linkMode: DynamicLoadingBundled(),
         file: targetDylib,

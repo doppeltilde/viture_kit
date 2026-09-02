@@ -450,28 +450,6 @@ class VitureKitBindings {
       >('xr_device_provider_close_imu');
   late final _xr_device_provider_close_imu = _xr_device_provider_close_imuPtr
       .asFunction<int Function(XRDeviceProviderHandle, int)>();
-
-  /// Initializes the VITURE SDK, starts UDP broadcast server, and opens IMU
-  int viture_bridge_start(int product_id, int port) {
-    return _viture_bridge_start(product_id, port);
-  }
-
-  late final _viture_bridge_startPtr =
-      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Int, ffi.Int)>>(
-        'viture_bridge_start',
-      );
-  late final _viture_bridge_start = _viture_bridge_startPtr
-      .asFunction<int Function(int, int)>();
-
-  /// Closes streams, stops sockets, and shuts down the VITURE provider
-  void viture_bridge_stop() {
-    return _viture_bridge_stop();
-  }
-
-  late final _viture_bridge_stopPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function()>>('viture_bridge_stop');
-  late final _viture_bridge_stop = _viture_bridge_stopPtr
-      .asFunction<void Function()>();
 }
 
 /// @brief Handle type for XRDeviceProvider instances. This is an opaque pointer

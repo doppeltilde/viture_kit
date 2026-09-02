@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -25,26 +26,43 @@ class SensorHomeScreen extends StatefulWidget {
 
 class _SensorHomeScreenState extends State<SensorHomeScreen> {
   final VitureKit _vitureKit = VitureKit();
+  StreamSubscription<ViturePoseData>? _poseSubscription;
   bool _isStreaming = false;
 
+  double _pitch = 0.0;
+  double _roll = 0.0;
   double _yaw = 0.0;
-  DateTime? _lastGyroTime;
 
   static const double pitchThreshold = 0.30;
   static const double yawThreshold = 0.30;
 
   Future<void> _toggleStreaming() async {
     if (_isStreaming) {
+      await _poseSubscription?.cancel();
+      _poseSubscription = null;
       await _vitureKit.stop();
       if (mounted) {
         setState(() {
           _isStreaming = false;
+          _pitch = 0.0;
+          _roll = 0.0;
           _yaw = 0.0;
-          _lastGyroTime = null;
         });
       }
     } else {
       await _vitureKit.start(productId: VitureProductId.viturePro2);
+
+      // Listen to native Pose stream outside of build()
+      _poseSubscription = _vitureKit.poseStream.listen((data) {
+        if (mounted) {
+          setState(() {
+            _pitch = data.pitch;
+            _roll = data.roll;
+            _yaw = data.yaw;
+          });
+        }
+      });
+
       if (mounted) {
         setState(() => _isStreaming = true);
       }
@@ -53,6 +71,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
 
   @override
   void dispose() {
+    _poseSubscription?.cancel();
     _vitureKit.stop();
     super.dispose();
   }
@@ -85,6 +104,8 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
     const textStyle = TextStyle(fontSize: 15);
     const spacer = SizedBox(height: 12);
 
+    final directionText = _getDirectionText(_pitch, _yaw);
+
     return Scaffold(
       appBar: AppBar(title: const Text('VITURE Head Tracking')),
       body: Padding(
@@ -107,116 +128,50 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                         textAlign: TextAlign.center,
                       ),
                     )
-                  : StreamBuilder<VitureImuData>(
-                      stream: _vitureKit.imuStream,
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Text('Error: ${snapshot.error}'),
-                          );
-                        }
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-
-                        final data = snapshot.data!;
-
-                        // ----- Yaw from gyro Z (FLIPPED) -----
-                        final now = DateTime.now();
-                        if (_lastGyroTime != null) {
-                          final dt =
-                              now.difference(_lastGyroTime!).inMicroseconds /
-                              1e6;
-                          if (dt > 0 && dt < 0.1) {
-                            _yaw -= data.gyroZ * dt; // ← flipped sign
-                            _yaw = _yaw.clamp(-math.pi, math.pi);
-                          }
-                        }
-                        _lastGyroTime = now;
-
-                        final ax = data.accelX;
-                        final ay = data.accelY;
-                        final az = data.accelZ;
-
-                        // Pitch (FLIPPED)
-                        double pitch = -math.atan2(
-                          ax,
-                          math.sqrt(ay * ay + az * az),
-                        );
-
-                        final double roll = math.atan2(ay, az);
-
-                        final directionText = _getDirectionText(pitch, _yaw);
-
-                        return SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              // Direction text
-                              Card(
-                                color: Colors.blue.shade50,
-                                elevation: 3,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                    horizontal: 20,
-                                  ),
-                                  child: Text(
-                                    directionText,
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blueAccent,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          Card(
+                            color: Colors.blue.shade50,
+                            elevation: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 20,
+                              ),
+                              child: Text(
+                                directionText,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
-                              spacer,
-
-                              // Head
-                              HeadVisualizer(
-                                pitch: pitch,
-                                roll: roll,
-                                yaw: _yaw,
-                              ),
-                              spacer,
-
-                              // Debug info
-                              Card(
-                                elevation: 2,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Accel  X:${ax.toStringAsFixed(2)}  '
-                                        'Y:${ay.toStringAsFixed(2)}  '
-                                        'Z:${az.toStringAsFixed(2)}',
-                                        style: textStyle,
-                                      ),
-                                      Text(
-                                        'Gyro   X:${data.gyroX.toStringAsFixed(2)}  '
-                                        'Y:${data.gyroY.toStringAsFixed(2)}  '
-                                        'Z:${data.gyroZ.toStringAsFixed(2)}',
-                                        style: textStyle,
-                                      ),
-                                      Text(
-                                        'Pitch: ${pitch.toStringAsFixed(2)}   '
-                                        'Yaw: ${_yaw.toStringAsFixed(2)}',
-                                        style: textStyle,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        );
-                      },
+                          spacer,
+                          HeadVisualizer(pitch: _pitch, roll: _roll, yaw: _yaw),
+                          spacer,
+                          Card(
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pitch: ${_pitch.toStringAsFixed(2)}   '
+                                    'Roll: ${_roll.toStringAsFixed(2)}   '
+                                    'Yaw: ${_yaw.toStringAsFixed(2)}',
+                                    style: textStyle,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
             ),
           ],
@@ -294,10 +249,7 @@ class HeadPainter extends CustomPainter {
     canvas.save();
     canvas.translate(center.dx, center.dy);
 
-    // Yaw
     canvas.rotate(yaw);
-
-    // Roll
     canvas.rotate(roll * 0.6);
 
     final double pitchAmount = pitch.clamp(-1.4, 1.4);
@@ -320,7 +272,6 @@ class HeadPainter extends CustomPainter {
 
     final double featureY = faceShiftY;
 
-    // Eyes
     final eyeWhite = Paint()..color = Colors.white;
     final pupil = Paint()..color = Colors.black87;
     final eyeX = radius * 0.30;
@@ -340,7 +291,6 @@ class HeadPainter extends CustomPainter {
       pupil,
     );
 
-    // Eyebrows
     final brow = Paint()
       ..color = Colors.brown.shade800
       ..strokeWidth = 4
@@ -358,7 +308,6 @@ class HeadPainter extends CustomPainter {
       brow,
     );
 
-    // Nose
     final noseY = featureY + radius * 0.05;
     final nosePath = Path()
       ..moveTo(0, noseY - 12)
@@ -373,7 +322,6 @@ class HeadPainter extends CustomPainter {
         ..strokeWidth = 2.5,
     );
 
-    // Mouth
     final mouthY = featureY + radius * 0.42;
     final mouthPaint = Paint()
       ..color = Colors.red.shade400
@@ -387,7 +335,6 @@ class HeadPainter extends CustomPainter {
       ..quadraticBezierTo(0, mouthY + smileFactor, radius * 0.24, mouthY);
     canvas.drawPath(mouthPath, mouthPaint);
 
-    // Ears
     final earPaint = Paint()..color = const Color(0xFFFFDBAC);
     canvas.drawCircle(
       Offset(-radius * 0.97, faceShiftY * 0.1),
@@ -410,7 +357,6 @@ class HeadPainter extends CustomPainter {
       outline,
     );
 
-    // Blue arrow
     final arrowPaint = Paint()..color = Colors.blueAccent;
     final arrowPath = Path()
       ..moveTo(0, -radius * 1.15 + faceShiftY * 0.3)
