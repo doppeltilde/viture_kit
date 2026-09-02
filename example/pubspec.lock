@@ -280,7 +280,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.2"
-  viture_sensors:
+  viture_kit:
     dependency: "direct main"
     description:
       path: ".."
