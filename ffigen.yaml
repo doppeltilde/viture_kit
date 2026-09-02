@@ -1,0 +1,34 @@
+# Run with `dart run ffigen --config ffigen.yaml`.
+name: VitureKitBindings
+description: 'Bindings for VITURE XR Glasses C SDK and Custom Bridge'
+output: 'lib/viture_kit_bindings_generated.dart'
+
+headers:
+  entry-points:
+    - 'src/include/viture_glasses_provider.h'
+    - 'src/include/viture_device.h'
+    - 'src/viture_bridge.h'
+  include-directives:
+    - 'src/include/*.h'
+    - 'src/viture_bridge.h'
+
+compiler-opts:
+  - '-Isrc/include'
+  - '-include stdint.h'
+  - '-include stdbool.h'
+
+comments:
+  style: any
+  length: full
+
+functions:
+  include:
+    - 'xr_.*'
+    - 'viture_bridge_.*'
+structs:
+  include:
+    - 'xr_.*'
+    - 'Viture.*'
+enums:
+  include:
+    - 'xr_.*'
