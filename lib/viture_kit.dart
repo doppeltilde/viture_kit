@@ -333,8 +333,19 @@ class VitureKit {
 
       rethrow;
     } finally {
+      //  await _kickSpaceWalker();
       _releaseCompleter = null;
       _isReleasing = false;
+    }
+  }
+
+  Future<void> _kickSpaceWalker() async {
+    try {
+      await Process.run('killall', ['SpaceWalker']);
+      await Future.delayed(const Duration(milliseconds: 500));
+      await Process.run('open', ['-a', 'SpaceWalker']);
+    } catch (e) {
+      _log('Failed to relaunch SpaceWalker: $e');
     }
   }
 

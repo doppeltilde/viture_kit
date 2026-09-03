@@ -54,12 +54,6 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
 
     try {
       if (enabled) {
-        //
-        // IMPORTANT:
-        //
-        // Subscribe BEFORE taking the IMU so that we do not
-        // miss the first pose messages.
-        //
         _poseSubscription = _vitureKit.poseStream.listen(
           (data) {
             if (!mounted) {
@@ -67,9 +61,9 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
             }
 
             setState(() {
-              _pitch = data.pitch;
-              _roll = data.roll;
-              _yaw = data.yaw;
+              _pitch = -data.pitch;
+              _roll = -data.roll;
+              _yaw = -data.yaw;
             });
           },
           onError: (Object error) {
@@ -83,28 +77,14 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
           },
         );
 
-        //
-        // This takes ownership of the VITURE IMU.
-        //
         await _vitureKit.takeHeadTracking(
           productId: VitureProductId.viturePro2,
         );
       } else {
-        //
-        // Stop listening first so no new UI updates are
-        // generated while ownership is being handed back.
-        //
         await _poseSubscription?.cancel();
 
         _poseSubscription = null;
 
-        //
-        // IMPORTANT:
-        //
-        // This now waits for the native worker to confirm
-        // that the VITURE provider has been completely
-        // destroyed.
-        //
         await _vitureKit.releaseHeadTracking();
 
         if (mounted) {
@@ -116,9 +96,6 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
         }
       }
     } catch (e) {
-      //
-      // If starting failed, clean up the subscription.
-      //
       if (enabled) {
         await _poseSubscription?.cancel();
         _poseSubscription = null;
@@ -141,42 +118,31 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   void dispose() {
     _poseSubscription?.cancel();
 
-    //
-    // Fire the async native cleanup.
-    //
     _vitureKit.dispose();
 
     super.dispose();
   }
 
   String _getDirectionText(double pitch, double yaw) {
-    String vertical = '';
+    final isUp = pitch > pitchThreshold;
+    final isDown = pitch < -pitchThreshold;
+    final isRight = yaw > yawThreshold;
+    final isLeft = yaw < -yawThreshold;
 
-    if (pitch > pitchThreshold) {
-      vertical = 'up';
-    } else if (pitch < -pitchThreshold) {
-      vertical = 'down';
-    }
-
-    String horizontal = '';
-
-    if (yaw > yawThreshold) {
-      horizontal = 'right';
-    } else if (yaw < -yawThreshold) {
-      horizontal = 'left';
-    }
-
-    if (vertical.isEmpty && horizontal.isEmpty) {
+    if (!isUp && !isDown && !isRight && !isLeft) {
       return 'Looking straight';
     }
 
-    if (vertical.isEmpty) {
-      return 'Looking $horizontal';
-    }
+    String vertical = '';
+    if (isUp) vertical = 'up';
+    if (isDown) vertical = 'down';
 
-    if (horizontal.isEmpty) {
-      return 'Looking $vertical';
-    }
+    String horizontal = '';
+    if (isRight) horizontal = 'right';
+    if (isLeft) horizontal = 'left';
+
+    if (vertical.isEmpty) return 'Looking $horizontal';
+    if (horizontal.isEmpty) return 'Looking $vertical';
 
     return 'Looking $horizontal $vertical';
   }
