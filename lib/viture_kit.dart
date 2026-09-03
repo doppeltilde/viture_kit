@@ -333,19 +333,8 @@ class VitureKit {
 
       rethrow;
     } finally {
-      //  await _kickSpaceWalker();
       _releaseCompleter = null;
       _isReleasing = false;
-    }
-  }
-
-  Future<void> _kickSpaceWalker() async {
-    try {
-      await Process.run('killall', ['SpaceWalker']);
-      await Future.delayed(const Duration(milliseconds: 500));
-      await Process.run('open', ['-a', 'SpaceWalker']);
-    } catch (e) {
-      _log('Failed to relaunch SpaceWalker: $e');
     }
   }
 
@@ -464,7 +453,7 @@ class VitureKit {
         '${config.productId}',
       );
 
-      provider = api!.xr_device_provider_create(config.productId);
+      provider = api.xr_device_provider_create(config.productId);
 
       if (provider == ffi.nullptr) {
         config.sendPort.send('ERROR: Failed to create device provider');
@@ -475,11 +464,11 @@ class VitureKit {
 
       _workerLog('Initializing provider');
 
-      api!.xr_device_provider_initialize(provider!, ffi.nullptr, ffi.nullptr);
+      api.xr_device_provider_initialize(provider!, ffi.nullptr, ffi.nullptr);
 
       _workerLog('Starting provider');
 
-      api!.xr_device_provider_start(provider!);
+      api.xr_device_provider_start(provider!);
 
       //
       // Give the native provider a moment to initialize
@@ -521,14 +510,14 @@ class VitureKit {
 
       _workerLog('Registering IMU pose callback');
 
-      api!.xr_device_provider_register_imu_pose_callback(
+      api.xr_device_provider_register_imu_pose_callback(
         provider!,
         poseCallable!.nativeFunction,
       );
 
       _workerLog('Opening pose IMU');
 
-      api!.xr_device_provider_open_imu(
+      api.xr_device_provider_open_imu(
         provider!,
         VitureImuMode.pose,
         VitureImuFrequency.freq60Hz,
