@@ -1,4 +1,4 @@
-# viture_sensors_example
+# viture_kit_example
 
 Demonstrates how to use the viture_sensors package.
 

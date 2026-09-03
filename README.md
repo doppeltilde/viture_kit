@@ -1,49 +1,71 @@
-# viture_sensors
+# Viture Kit
 
-A new Dart FFI package project.
+Native Dart bindings for the [VITURE XR Glasses SDK](https://www.viture.com/).
 
-## Getting Started
+## API Reference
 
-This project is a starting point for a Flutter
-[FFI package](https://flutter.dev/to/ffi-package),
-a specialized package that includes native code directly invoked with Dart FFI.
+### Core Class: `VitureKit`
 
-## Project structure
+| Method / Property | Type | Description |
+|---|---|---|
+| `sdkVersion` | `String` | Returns the native SDK version string. |
+| `isHeadTrackingActive` | `bool` | Indicates whether IMU data is currently streaming. |
+| `poseStream` | `Stream<ViturePoseData>` | Broadcast stream delivering raw and parsed orientation updates. |
+| `takeHeadTracking({int productId})` | `Future<void>` | Initializes native bindings and starts receiving IMU data. |
+| `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
+| `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
+| `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
 
-This template uses the following structure:
+### Data Models & Constants
 
-* `src`: Contains the native source code, and a CmakeFile.txt file for building
-  that source code into a dynamic library.
+#### `ViturePoseData`
+Holds orientation and timestamp attributes:
+* `roll`, `pitch`, `yaw`: `double` (Euler angles)
+* `quatW`, `quatX`, `quatY`, `quatZ`: `double` (Quaternion orientation)
+* `timestamp`: `int`
 
-* `lib`: Contains the Dart code that defines the API of the plugin, and which
-  calls into the native code using `dart:ffi`.
+#### `VitureProductId`
+Supported device identifiers for `takeHeadTracking()`:
+* `VitureProductId.vitureOne` (`0x35CA`)
+* `VitureProductId.viturePro` (`0x35CB`)
+* `VitureProductId.viturePro2` (`0x1301`) — *Default*
 
-* `bin`: Contains the `build.dart` that performs the external native builds.
+---
 
-## Building and bundling native code
+## Usage Example
 
-`build.dart` does the building of native components.
+```dart
+import 'dart:async';
+import 'package:viture_kit/viture_kit.dart';
 
-Bundling is done by Flutter based on the output from `build.dart`.
+Future<void> main() async {
+  final viture = VitureKit();
 
-## Binding to native code
+  print('VITURE SDK Version: ${VitureKit.sdkVersion}');
 
-To use the native code, bindings in Dart are needed.
-To avoid writing these by hand, they are generated from the header file
-(`src/viture_sensors.h`) by `package:ffigen`.
-Regenerate the bindings by running `dart run ffigen --config ffigen.yaml`.
+  // 1. Listen to orientation events
+  final subscription = viture.poseStream.listen((ViturePoseData pose) {
+    print('Roll: ${pose.roll}, Pitch: ${pose.pitch}, Yaw:${pose.yaw}');
+    print('Quat: [${pose.quatW},${pose.quatX}, ${pose.quatY},${pose.quatZ}]');
+  });
 
-## Invoking native code
+  // 2. Claim ownership of the IMU
+  try {
+    await viture.takeHeadTracking(productId: VitureProductId.viturePro2);
+    print('Head tracking started successfully.');
+  } catch (e) {
+    print('Failed to start head tracking: $e');
+  }
 
-Very short-running native functions can be directly invoked from any isolate.
-For example, see `sum` in `lib/viture_sensors.dart`.
+  // 3. Stop tracking and clean up
+  await subscription.cancel();
+  await viture.releaseHeadTracking();
+  await viture.dispose();
+  print('Head tracking released.');
+}
+```
 
-Longer-running functions should be invoked on a helper isolate to avoid
-dropping frames in Flutter applications.
-For example, see `sumAsync` in `lib/viture_sensors.dart`.
+---
 
-## Flutter help
-
-For help getting started with Flutter, view our
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Caveat
+When the Spacewalker App is open `VitureKit` will 

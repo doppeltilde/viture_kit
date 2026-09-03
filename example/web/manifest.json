@@ -1,6 +1,6 @@
 {
-    "name": "viture_sensors_example",
-    "short_name": "viture_sensors_example",
+    "name": "viture_kit_example",
+    "short_name": "viture_kit_example",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

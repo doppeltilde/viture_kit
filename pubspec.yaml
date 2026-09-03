@@ -5,6 +5,15 @@ version: 0.0.1
 environment:
   sdk: ^3.13.2
 
+platforms:
+  macos:
+
+topics:
+  - viture
+  - xr
+  - macos
+  - ffi
+
 dependencies:
   code_assets: ^1.1.0
   hooks: ^2.0.0

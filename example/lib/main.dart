@@ -77,9 +77,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
           },
         );
 
-        await _vitureKit.takeHeadTracking(
-          productId: VitureProductId.viturePro2,
-        );
+        await _vitureKit.takeHeadTracking();
       } else {
         await _poseSubscription?.cancel();
 
@@ -166,7 +164,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
           children: [
             Card(
               elevation: 2,
-              child: SwitchListTile(
+              child: SwitchListTile.adaptive(
                 title: const Text('Take head tracking'),
                 subtitle: Text(
                   isActive

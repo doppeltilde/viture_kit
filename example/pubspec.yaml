@@ -1,4 +1,4 @@
-name: viture_sensors_example
+name: viture_kit_example
 description: "Demonstrates how to use the viture_sensors package."
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
