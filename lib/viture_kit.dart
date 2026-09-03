@@ -70,6 +70,12 @@ class _IsolateInitConfig {
 enum _ControlCommand { stop }
 
 class VitureKit {
+  static String get sdkVersion => bindings.VITURE_VERSION_STRING;
+
+  static int get sdkVersionMajor => bindings.VITURE_VERSION_MAJOR;
+  static int get sdkVersionMinor => bindings.VITURE_VERSION_MINOR;
+  static int get sdkVersionPatch => bindings.VITURE_VERSION_PATCH;
+
   Isolate? _workerIsolate;
   ReceivePort? _receivePort;
   SendPort? _commandPort;

@@ -24,9 +24,11 @@
 // null-terminated static string owned by the library; callers must not free it.
 extern "C" VITURE_API const char* GetVersionString();
 
+#ifdef __cplusplus
 namespace viture::version {
     // Expose version pieces as compile-time constants
     constexpr int kMajor = VITURE_VERSION_MAJOR;
     constexpr int kMinor = VITURE_VERSION_MINOR;
     constexpr int kPatch = VITURE_VERSION_PATCH;
 } // namespace viture::version
+#endif

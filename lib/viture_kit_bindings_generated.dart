@@ -573,3 +573,11 @@ const int LOG_LEVEL_ERROR = 1;
 const int LOG_LEVEL_INFO = 2;
 
 const int LOG_LEVEL_DEBUG = 3;
+
+const int VITURE_VERSION_MAJOR = 2;
+
+const int VITURE_VERSION_MINOR = 4;
+
+const int VITURE_VERSION_PATCH = 0;
+
+const String VITURE_VERSION_STRING = '2.4.0';

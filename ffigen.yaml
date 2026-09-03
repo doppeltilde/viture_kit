@@ -3,10 +3,13 @@ name: VitureKitBindings
 description: 'Bindings for VITURE XR Glasses C SDK and Custom Bridge'
 output: 'lib/viture_kit_bindings_generated.dart'
 
+ignore-source-errors: true
+
 headers:
   entry-points:
     - 'src/include/viture_glasses_provider.h'
     - 'src/include/viture_device.h'
+    - 'src/include/viture_version.h'
   include-directives:
     - 'src/include/*.h'
 
@@ -22,6 +25,7 @@ comments:
 functions:
   include:
     - 'xr_.*'
+    - 'GetVersionString'
 structs:
   include:
     - 'xr_.*'
