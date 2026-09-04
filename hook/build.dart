@@ -13,7 +13,7 @@ void main(List<String> args) async {
 
     final dylibs = [
       'libglasses.dylib',
-      'libusb-1.0.0.dylib',
+      // 'libusb-1.0.0.dylib',
       // 'libhidapi.0.15.0.dylib',
     ];
 

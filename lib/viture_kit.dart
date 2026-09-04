@@ -104,10 +104,10 @@ class VitureKit {
     );
   }
 
-  static int? fetchVitureProductIdWithLibusb() {
-    final productIds = LibusbHelper.fetchLibUsbVitureProductIds();
-    return productIds.isEmpty ? null : productIds.first;
-  }
+  // static int? fetchVitureProductIdWithLibusb() {
+  //   final productIds = LibusbHelper.fetchLibUsbVitureProductIds();
+  //   return productIds.isEmpty ? null : productIds.first;
+  // }
 
   static int? fetchHidapiVitureProductIds() {
     final productIds = HIDAPIHelper.fetchHidapiVitureProductIds();
@@ -391,20 +391,21 @@ class VitureKit {
       try {
         if (provider != null && api != null) {
           if (deviceType != vitureDeviceTypeCarina) {
-            _workerLog('Closing IMU');
-            api.xr_device_provider_close_imu(provider!, VitureImuMode.pose);
-
-            _workerLog('Unregistering IMU callback');
+            _workerLog('Unregistering IMU callback first');
             api.xr_device_provider_register_imu_pose_callback(
               provider!,
               ffi.nullptr,
             );
+
+            poseCallable?.close();
+            poseCallable = null;
+
+            _workerLog('Closing IMU');
+            api.xr_device_provider_close_imu(provider!, VitureImuMode.pose);
           }
 
           _workerLog('Stopping provider');
           api.xr_device_provider_stop(provider!);
-
-          sleep(const Duration(milliseconds: 200));
 
           _workerLog('Shutting down provider');
           api.xr_device_provider_shutdown(provider!);
@@ -418,9 +419,7 @@ class VitureKit {
         _workerLog('ERROR: Native cleanup failed: $e\n$st');
         config.sendPort.send('ERROR: Cleanup failed: $e');
       } finally {
-        try {
-          poseCallable?.close();
-        } catch (_) {}
+        poseCallable?.close();
         poseCallable = null;
 
         config.sendPort.send('IMU_RELEASED');

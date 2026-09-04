@@ -16,8 +16,6 @@ class _CubeViewState extends State<CubeView> {
   @override
   void initState() {
     super.initState();
-    // Geometry and materials touch the shader bundle, so build them once the
-    // engine's static resources are up.
     Scene.initializeStaticResources().then((_) {
       scene.add(
         Node(

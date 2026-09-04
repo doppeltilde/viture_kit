@@ -208,13 +208,6 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
           children: [
             ElevatedButton(
               onPressed: () async {
-                final res = VitureKit.fetchVitureProductIdWithLibusb();
-                print(res);
-              },
-              child: const Text("libusb"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
                 final res = VitureKit.fetchHidapiVitureProductIds();
                 print(res);
               },
@@ -348,11 +341,10 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   }
 }
 
-/// Network face image with proper 3D rotation
 class HeadVisualizer extends StatelessWidget {
-  final double pitch; // degrees
-  final double roll; // degrees
-  final double yaw; // degrees
+  final double pitch;
+  final double roll;
+  final double yaw;
 
   const HeadVisualizer({
     super.key,
@@ -363,13 +355,12 @@ class HeadVisualizer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Convert degrees → radians + sensitivity
     const double sensitivity = 0.85;
-    final double yawRad = yaw * math.pi / 180.0 * sensitivity;
-    final double pitchRad = pitch * math.pi / 180.0 * sensitivity;
+
+    final double yawRad = -yaw * math.pi / 180.0 * sensitivity;
+    final double pitchRad = -pitch * math.pi / 180.0 * sensitivity;
     final double rollRad = roll * math.pi / 180.0 * sensitivity;
 
-    // Yaw → Pitch → Roll + perspective
     final matrix = Matrix4.identity()
       ..setEntry(3, 2, 0.0015)
       ..rotateY(yawRad)
@@ -396,28 +387,39 @@ class HeadVisualizer extends StatelessWidget {
                   transform: matrix,
                   child: ClipOval(
                     child: Image.network(
-                      'https://images.pexels.com/photos/39084099/pexels-photo-39084099.jpeg',
+                      'https://randomuser.me/api/portraits/men/32.jpg',
                       width: 200,
                       height: 200,
                       fit: BoxFit.cover,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
-                        return const SizedBox(
-                          width: 200,
-                          height: 200,
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
                         return Container(
                           width: 200,
                           height: 200,
-                          color: Colors.grey.shade300,
-                          alignment: Alignment.center,
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('Image load error: $error');
+                        // Nice fallback face
+                        return Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFDBAC),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.brown.shade400,
+                              width: 3,
+                            ),
+                          ),
                           child: const Icon(
                             Icons.person,
-                            size: 80,
-                            color: Colors.grey,
+                            size: 110,
+                            color: Colors.brown,
                           ),
                         );
                       },
