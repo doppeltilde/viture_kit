@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:viture_kit/viture_kit.dart'; // or package:viture_sensors/viture_kit.dart
+import 'package:viture_kit/viture_kit.dart';
 
 void main() {
   late VitureKit vitureKit;

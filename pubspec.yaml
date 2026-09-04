@@ -1,6 +1,8 @@
 name: viture_kit
-description: "A new Dart FFI package project."
+description: "Native Dart FFI bindings for the VITURE XR Glasses SDK."
 version: 0.0.1
+homepage: https://github.com/doppeltilde/viture_kit
+
 
 environment:
   sdk: ^3.13.2
