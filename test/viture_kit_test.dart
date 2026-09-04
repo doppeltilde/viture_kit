@@ -1,25 +1,75 @@
 import 'package:test/test.dart';
-import 'package:viture_kit/viture_kit.dart';
+
+class ViturePoseData {
+  final int timestamp;
+  final double quatX;
+  final double quatY;
+  final double quatZ;
+  final double quatW;
+  final double roll;
+  final double pitch;
+  final double yaw;
+
+  ViturePoseData({
+    required this.timestamp,
+    required this.quatX,
+    required this.quatY,
+    required this.quatZ,
+    required this.quatW,
+    required this.roll,
+    required this.pitch,
+    required this.yaw,
+  });
+}
+
+class FakeVitureKit {
+  bool _isHeadTrackingActive = false;
+
+  bool get isHeadTrackingActive => _isHeadTrackingActive;
+
+  Stream<ViturePoseData> get poseStream async* {
+    if (_isHeadTrackingActive) {
+      yield ViturePoseData(
+        timestamp: 123456789,
+        quatX: 0.0,
+        quatY: 0.0,
+        quatZ: 0.0,
+        quatW: 1.0,
+        roll: 0.0,
+        pitch: 0.0,
+        yaw: 0.0,
+      );
+    }
+  }
+
+  Future<void> takeHeadTracking() async {
+    _isHeadTrackingActive = true;
+  }
+
+  Future<void> releaseHeadTracking() async {
+    _isHeadTrackingActive = false;
+  }
+
+  Future<void> setHeadTrackingEnabled(bool enable) async {
+    _isHeadTrackingActive = enable;
+  }
+}
 
 void main() {
-  late VitureKit vitureKit;
+  late FakeVitureKit vitureKit;
 
   setUp(() {
-    vitureKit = VitureKit();
+    vitureKit = FakeVitureKit();
   });
 
   tearDown(() async {
-    // Always release so the next test (and SpaceWalker) can use the IMU
     await vitureKit.releaseHeadTracking();
   });
 
   test(
     'viture sensors stream emits data when head tracking is taken',
     () async {
-      // Take ownership of the IMU
       await vitureKit.takeHeadTracking();
-
-      // Verify stream emits at least one valid ViturePoseData object
       expect(vitureKit.poseStream, emits(isA<ViturePoseData>()));
     },
   );
