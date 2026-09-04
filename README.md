@@ -24,12 +24,6 @@ Holds orientation and timestamp attributes:
 * `quatW`, `quatX`, `quatY`, `quatZ`: `double` (Quaternion orientation)
 * `timestamp`: `int`
 
-#### `VitureProductId`
-Supported device identifiers for `takeHeadTracking()`:
-* `VitureProductId.vitureOne` (`0x35CA`)
-* `VitureProductId.viturePro` (`0x35CB`)
-* `VitureProductId.viturePro2` (`0x1301`) — *Default*
-
 ---
 
 ## Usage Example
@@ -51,7 +45,7 @@ Future<void> main() async {
 
   // 2. Claim ownership of the IMU
   try {
-    await viture.takeHeadTracking(productId: VitureProductId.viturePro2);
+    await viture.takeHeadTracking();
     print('Head tracking started successfully.');
   } catch (e) {
     print('Failed to start head tracking: $e');
@@ -68,4 +62,4 @@ Future<void> main() async {
 ---
 
 ## Caveat
-When the Spacewalker App is open `VitureKit` will 
+When the Spacewalker App is open `VitureKit` will assume control for head tracking.

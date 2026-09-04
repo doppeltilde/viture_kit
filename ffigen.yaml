@@ -9,6 +9,7 @@ headers:
   entry-points:
     - 'src/include/viture_glasses_provider.h'
     - 'src/include/viture_device.h'
+    - 'src/include/viture_device_carina.h'
     - 'src/include/viture_version.h'
   include-directives:
     - 'src/include/*.h'

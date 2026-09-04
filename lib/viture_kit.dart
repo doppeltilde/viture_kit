@@ -3,12 +3,15 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:isolate';
 
+// ignore: depend_on_referenced_packages
+import 'package:ffi/ffi.dart';
 import 'package:viture_kit/helper/hiadpi_helper.dart';
 import 'package:viture_kit/helper/libusb_helper.dart';
 
 import 'viture_kit_bindings_generated.dart' as bindings;
 
-/// Formatted pose data read from the glasses.
+const int vitureDeviceTypeCarina = 2;
+
 class ViturePoseData {
   final double roll;
   final double pitch;
@@ -42,13 +45,11 @@ class ViturePoseData {
   }
 }
 
-/// IMU modes matching VITURE protocol.
 abstract class VitureImuMode {
   static const int raw = 0;
   static const int pose = 1;
 }
 
-/// IMU frequencies matching VITURE protocol.
 abstract class VitureImuFrequency {
   static const int freq60Hz = 1;
   static const int freq120Hz = 2;
@@ -93,7 +94,6 @@ class VitureKit {
     return _poseController!.stream;
   }
 
-  /// Resolve the VITURE framework location on macOS.
   static String _resolveDylibPath() {
     if (Platform.isMacOS) {
       return 'glasses.framework/glasses';
@@ -104,24 +104,16 @@ class VitureKit {
     );
   }
 
-  /// Fetch the Viture Glasses Product Id dynamically.
-  /// Uses libusb https://github.com/libusb/libusb
   static int? fetchVitureProductIdWithLibusb() {
     final productIds = LibusbHelper.fetchLibUsbVitureProductIds();
     return productIds.isEmpty ? null : productIds.first;
   }
 
-  /// Fetch the Viture Glasses Product Id dynamically.
-  /// Uses HIDAPI https://github.com/libusb/hidapi
   static int? fetchHidapiVitureProductIds() {
     final productIds = HIDAPIHelper.fetchHidapiVitureProductIds();
     return productIds.isEmpty ? null : productIds.first;
   }
 
-  /// Take ownership of the glasses IMU.
-  ///
-  /// SpaceWalker's tracking will stop while this app owns
-  /// the IMU.
   Future<void> takeHeadTracking() async {
     final res = fetchHidapiVitureProductIds();
     if (res == null) {
@@ -182,9 +174,7 @@ class VitureKit {
                 timestamp: message[7] as int,
               ),
             );
-          } catch (_) {
-            // Ignore events arriving during shutdown.
-          }
+          } catch (_) {}
 
           return;
         }
@@ -220,8 +210,6 @@ class VitureKit {
         debugName: 'VitureKitWorker',
       );
 
-      // Wait for the native worker to confirm that the IMU
-      // is actually open.
       await startCompleter.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () {
@@ -233,8 +221,6 @@ class VitureKit {
     } catch (e) {
       _log('Start failed: $e');
 
-      // Make absolutely sure a partially-created worker
-      // cannot keep the IMU open.
       try {
         _commandPort?.send(_ControlCommand.stop);
       } catch (_) {}
@@ -257,22 +243,6 @@ class VitureKit {
     }
   }
 
-  /// Release ownership of the glasses IMU.
-  ///
-  /// IMPORTANT:
-  ///
-  /// We do NOT close the ReceivePort or mark tracking inactive
-  /// until the worker explicitly confirms:
-  ///
-  ///   close_imu()
-  ///   stop()
-  ///   shutdown()
-  ///   destroy()
-  ///
-  /// has completed.
-  ///
-  /// This is much safer for handoff to SpaceWalker than the
-  /// previous arbitrary 200 ms delay.
   Future<void> releaseHeadTracking() async {
     if (!_isHeadTrackingActive && !_isStarting && !_isReleasing) {
       return;
@@ -297,12 +267,8 @@ class VitureKit {
     _releaseCompleter = releaseCompleter;
 
     try {
-      // Tell the native worker to perform the complete
-      // teardown.
       commandPort.send(_ControlCommand.stop);
 
-      // Wait for the native side to explicitly confirm
-      // that the provider has been destroyed.
       await releaseCompleter.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () {
@@ -312,14 +278,6 @@ class VitureKit {
         },
       );
 
-      // The worker has now completed:
-      //
-      // close_imu
-      // stop
-      // shutdown
-      // destroy
-      //
-      // Only now tear down the Dart-side resources.
       worker.kill(priority: Isolate.immediate);
 
       _workerIsolate = null;
@@ -332,8 +290,6 @@ class VitureKit {
     } catch (e) {
       _log('Release failed: $e');
 
-      // If the worker is somehow stuck, do not leave a dead
-      // Dart reference around forever.
       try {
         worker.kill(priority: Isolate.immediate);
       } catch (_) {}
@@ -362,11 +318,9 @@ class VitureKit {
   }
 
   static void _log(String message) {
-    // ignore: avoid_print
     print('[VitureKit] $message');
   }
 
-  /// Native worker.
   static void _backgroundSensorWorker(_IsolateInitConfig config) {
     final commandPort = ReceivePort();
 
@@ -378,6 +332,7 @@ class VitureKit {
     ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? poseCallable;
 
     bool cleanedUp = false;
+    int deviceType = -1;
 
     void cleanup() {
       if (cleanedUp) {
@@ -390,32 +345,19 @@ class VitureKit {
 
       try {
         if (provider != null && api != null) {
-          //
-          // IMPORTANT:
-          //
-          // Close the IMU FIRST.
-          //
-          _workerLog('Closing IMU');
+          if (deviceType != vitureDeviceTypeCarina) {
+            _workerLog('Closing IMU');
+            api.xr_device_provider_close_imu(provider!, VitureImuMode.pose);
+          }
 
-          api.xr_device_provider_close_imu(provider!, VitureImuMode.pose);
-
-          //
-          // Then stop the provider.
-          //
           _workerLog('Stopping provider');
 
           api.xr_device_provider_stop(provider!);
 
-          //
-          // Then shutdown.
-          //
           _workerLog('Shutting down provider');
 
           api.xr_device_provider_shutdown(provider!);
 
-          //
-          // Finally destroy.
-          //
           _workerLog('Destroying provider');
 
           api.xr_device_provider_destroy(provider!);
@@ -429,22 +371,12 @@ class VitureKit {
 
         config.sendPort.send('ERROR: Cleanup failed: $e');
       } finally {
-        //
-        // The callback must not remain alive after the provider
-        // has been destroyed.
-        //
         try {
           poseCallable?.close();
         } catch (_) {}
 
         poseCallable = null;
 
-        //
-        // THIS is the important new handshake.
-        //
-        // Do not make the Flutter isolate guess when cleanup
-        // has completed.
-        //
         config.sendPort.send('IMU_RELEASED');
 
         commandPort.close();
@@ -482,58 +414,88 @@ class VitureKit {
 
       api.xr_device_provider_start(provider!);
 
-      //
-      // Give the native provider a moment to initialize
-      // before registering/opening the IMU.
-      //
       sleep(const Duration(milliseconds: 400));
 
-      //
-      // Register pose callback.
-      //
-      poseCallable =
-          ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>.listener((
-            ffi.Pointer<ffi.Float> dataPtr,
-            int timestamp,
-          ) {
-            if (dataPtr == ffi.nullptr) {
-              return;
-            }
+      deviceType = api.xr_device_provider_get_device_type(provider!);
+      _workerLog('Detected device type: $deviceType');
 
-            if (cleanedUp) {
-              return;
-            }
+      if (deviceType != vitureDeviceTypeCarina) {
+        poseCallable =
+            ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>.listener(
+              (ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
+                if (dataPtr == ffi.nullptr) {
+                  return;
+                }
 
+                if (cleanedUp) {
+                  return;
+                }
+
+                try {
+                  config.sendPort.send(<Object>[
+                    dataPtr[0],
+                    dataPtr[1],
+                    dataPtr[2],
+                    dataPtr[3],
+                    dataPtr[4],
+                    dataPtr[5],
+                    dataPtr[6],
+                    timestamp,
+                  ]);
+                } catch (_) {}
+              },
+            );
+
+        _workerLog('Registering IMU pose callback');
+
+        api.xr_device_provider_register_imu_pose_callback(
+          provider!,
+          poseCallable!.nativeFunction,
+        );
+
+        _workerLog('Opening pose IMU');
+
+        api.xr_device_provider_open_imu(
+          provider!,
+          VitureImuMode.pose,
+          VitureImuFrequency.freq60Hz,
+        );
+      } else {
+        _workerLog('Starting Carina pose polling');
+        final posePtr = calloc<ffi.Float>(7);
+        final statusPtr = calloc<ffi.Int>();
+
+        Timer.periodic(const Duration(milliseconds: 2), (timer) {
+          if (cleanedUp) {
+            timer.cancel();
+            calloc.free(posePtr);
+            calloc.free(statusPtr);
+            return;
+          }
+
+          api!.xr_device_provider_get_gl_pose_carina(
+            provider!,
+            posePtr,
+            0.0,
+            statusPtr,
+          );
+
+          if (statusPtr.value == 0) {
             try {
               config.sendPort.send(<Object>[
-                dataPtr[0],
-                dataPtr[1],
-                dataPtr[2],
-                dataPtr[3],
-                dataPtr[4],
-                dataPtr[5],
-                dataPtr[6],
-                timestamp,
+                posePtr[0],
+                posePtr[1],
+                posePtr[2],
+                posePtr[3],
+                posePtr[4],
+                posePtr[5],
+                posePtr[6],
+                DateTime.now().millisecondsSinceEpoch,
               ]);
-            } catch (_) {
-              // Ignore callbacks during teardown.
-            }
-          });
-
-      _workerLog('Registering IMU pose callback');
-
-      api.xr_device_provider_register_imu_pose_callback(
-        provider!,
-        poseCallable!.nativeFunction,
-      );
-
-      _workerLog('Opening pose IMU');
-
-      api.xr_device_provider_open_imu(
-        provider!,
-        VitureImuMode.pose,
-        VitureImuFrequency.freq60Hz,
-      );
+            } catch (_) {}
+          }
+        });
+      }
 
       _workerLog('IMU ready');
 
@@ -546,32 +508,21 @@ class VitureKit {
       Isolate.exit();
     }
 
-    //
-    // Wait for commands from the main isolate.
-    //
     commandPort.listen((message) {
       if (message == _ControlCommand.stop) {
         _workerLog('STOP command received');
 
         cleanup();
 
-        //
-        // Cleanup sends IMU_RELEASED before exiting.
-        //
         Isolate.exit();
       }
     });
   }
 
   static void _workerLog(String message) {
-    // ignore: avoid_print
     print('[VitureKitWorker] $message');
   }
 
-  /// Call this when the Flutter app itself is going away.
-  ///
-  /// We deliberately do not close the pose controller here because
-  /// callers may still own the stream. The native worker is released.
   Future<void> dispose() async {
     try {
       await releaseHeadTracking();
