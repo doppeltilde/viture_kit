@@ -373,22 +373,17 @@ class VitureKit {
 
   static void _backgroundSensorWorker(_IsolateInitConfig config) {
     final commandPort = ReceivePort();
-
     config.sendPort.send(commandPort.sendPort);
 
     bindings.VitureKitBindings? api;
     ffi.Pointer<ffi.Void>? provider;
-
     ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? poseCallable;
 
     bool cleanedUp = false;
     int deviceType = -1;
 
     void cleanup() {
-      if (cleanedUp) {
-        return;
-      }
-
+      if (cleanedUp) return;
       cleanedUp = true;
 
       _workerLog('Beginning native IMU cleanup');
@@ -398,88 +393,64 @@ class VitureKit {
           if (deviceType != vitureDeviceTypeCarina) {
             _workerLog('Closing IMU');
             api.xr_device_provider_close_imu(provider!, VitureImuMode.pose);
+
+            _workerLog('Unregistering IMU callback');
+            api.xr_device_provider_register_imu_pose_callback(
+              provider!,
+              ffi.nullptr,
+            );
           }
 
           _workerLog('Stopping provider');
-
           api.xr_device_provider_stop(provider!);
 
-          _workerLog('Shutting down provider');
+          sleep(const Duration(milliseconds: 200));
 
+          _workerLog('Shutting down provider');
           api.xr_device_provider_shutdown(provider!);
 
           _workerLog('Destroying provider');
-
           api.xr_device_provider_destroy(provider!);
 
           provider = null;
-
-          _workerLog('Native provider destroyed');
         }
       } catch (e, st) {
         _workerLog('ERROR: Native cleanup failed: $e\n$st');
-
         config.sendPort.send('ERROR: Cleanup failed: $e');
       } finally {
         try {
           poseCallable?.close();
         } catch (_) {}
-
         poseCallable = null;
 
         config.sendPort.send('IMU_RELEASED');
-
         commandPort.close();
-
         _workerLog('Cleanup complete');
       }
     }
 
     try {
-      _workerLog('Opening VITURE framework: ${config.dylibPath}');
-
       final dylib = ffi.DynamicLibrary.open(config.dylibPath);
-
       api = bindings.VitureKitBindings(dylib);
 
-      _workerLog(
-        'Creating device provider for product '
-        '${config.productId}',
-      );
-
       provider = api.xr_device_provider_create(config.productId);
-
       if (provider == ffi.nullptr) {
         config.sendPort.send('ERROR: Failed to create device provider');
-
         cleanup();
         Isolate.exit();
       }
 
-      _workerLog('Initializing provider');
-
       api.xr_device_provider_initialize(provider!, ffi.nullptr, ffi.nullptr);
-
-      _workerLog('Starting provider');
-
       api.xr_device_provider_start(provider!);
 
       sleep(const Duration(milliseconds: 400));
-
       deviceType = api.xr_device_provider_get_device_type(provider!);
-      _workerLog('Detected device type: $deviceType');
 
       if (deviceType != vitureDeviceTypeCarina) {
         poseCallable =
             ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>.listener(
               (ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
-                if (dataPtr == ffi.nullptr) {
-                  return;
-                }
-
-                if (cleanedUp) {
-                  return;
-                }
+                if (dataPtr == ffi.nullptr || cleanedUp) return;
 
                 try {
                   config.sendPort.send(<Object>[
@@ -496,14 +467,10 @@ class VitureKit {
               },
             );
 
-        _workerLog('Registering IMU pose callback');
-
         api.xr_device_provider_register_imu_pose_callback(
           provider!,
           poseCallable!.nativeFunction,
         );
-
-        _workerLog('Opening pose IMU');
 
         api.xr_device_provider_open_imu(
           provider!,
@@ -511,7 +478,6 @@ class VitureKit {
           VitureImuFrequency.freq60Hz,
         );
       } else {
-        _workerLog('Starting Carina pose polling');
         final posePtr = calloc<ffi.Float>(7);
         final statusPtr = calloc<ffi.Int>();
 
@@ -547,23 +513,16 @@ class VitureKit {
         });
       }
 
-      _workerLog('IMU ready');
-
       config.sendPort.send('IMU_READY');
     } catch (e, st) {
       config.sendPort.send('ERROR: $e\n$st');
-
       cleanup();
-
       Isolate.exit();
     }
 
     commandPort.listen((message) {
       if (message == _ControlCommand.stop) {
-        _workerLog('STOP command received');
-
         cleanup();
-
         Isolate.exit();
       }
     });

@@ -66,4 +66,5 @@ Future<void> main() async {
 ---
 
 ## Caveat
-When the Spacewalker App is open `VitureKit` will assume control for head tracking.
+> [!IMPORTANT]  
+> When the Spacewalker App is open `VitureKit` will assume control of the IMU for head tracking, stopping tracking on the Spacewalker app.

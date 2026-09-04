@@ -4,10 +4,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:viture_kit/viture_kit.dart';
+import 'package:viture_kit_example/flutter_scene_example.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
   runApp(const MyApp());
 }
 
@@ -100,25 +100,20 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   double _roll = 0.0;
   double _yaw = 0.0;
 
-  static const double pitchThreshold = 0.30;
-  static const double yawThreshold = 0.30;
+  // Values from Viture are in degrees
+  static const double pitchThreshold = 15.0;
+  static const double yawThreshold = 15.0;
 
   Future<void> _onToggleChanged(bool enabled) async {
-    if (_isBusy) {
-      return;
-    }
+    if (_isBusy) return;
 
-    setState(() {
-      _isBusy = true;
-    });
+    setState(() => _isBusy = true);
 
     try {
       if (enabled) {
         _poseSubscription = _vitureKit.poseStream.listen(
           (data) {
-            if (!mounted) {
-              return;
-            }
+            if (!mounted) return;
 
             setState(() {
               _pitch = -data.pitch;
@@ -127,10 +122,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
             });
           },
           onError: (Object error) {
-            if (!mounted) {
-              return;
-            }
-
+            if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Head tracking error: $error')),
             );
@@ -140,9 +132,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
         await _vitureKit.takeHeadTracking();
       } else {
         await _poseSubscription?.cancel();
-
         _poseSubscription = null;
-
         await _vitureKit.releaseHeadTracking();
 
         if (mounted) {
@@ -165,9 +155,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isBusy = false;
-        });
+        setState(() => _isBusy = false);
       }
     }
   }
@@ -175,9 +163,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   @override
   void dispose() {
     _poseSubscription?.cancel();
-
     _vitureKit.dispose();
-
     super.dispose();
   }
 
@@ -208,11 +194,9 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   @override
   Widget build(BuildContext context) {
     const textStyle = TextStyle(fontSize: 15);
-
     const spacer = SizedBox(height: 12);
 
     final bool isActive = _vitureKit.isHeadTrackingActive;
-
     final directionText = _getDirectionText(_pitch, _yaw);
 
     return Scaffold(
@@ -227,28 +211,37 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                 final res = VitureKit.fetchVitureProductIdWithLibusb();
                 print(res);
               },
-              child: Text("libusb"),
+              child: const Text("libusb"),
             ),
             ElevatedButton(
               onPressed: () async {
                 final res = VitureKit.fetchHidapiVitureProductIds();
                 print(res);
               },
-              child: Text("hidapi"),
+              child: const Text("hidapi"),
             ),
             ElevatedButton(
               onPressed: () async {
                 final res = _vitureKit.getBrightnessLevel();
                 print(res);
               },
-              child: Text("Get Brightness"),
+              child: const Text("Get Brightness"),
             ),
             ElevatedButton(
               onPressed: () async {
                 final res = _vitureKit.getVolumeLevel();
                 print(res);
               },
-              child: Text("Get Volume"),
+              child: const Text("Get Volume"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CubeView()),
+                );
+              },
+              child: const Text("Cube Scene"),
             ),
             Column(
               mainAxisSize: MainAxisSize.min,
@@ -281,7 +274,6 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                 ),
               ],
             ),
-
             Card(
               elevation: 2,
               child: SwitchListTile.adaptive(
@@ -295,15 +287,12 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                 onChanged: _isBusy ? null : _onToggleChanged,
               ),
             ),
-
             spacer,
-
             if (_isBusy)
               const Padding(
                 padding: EdgeInsets.all(8),
                 child: Center(child: CircularProgressIndicator()),
               ),
-
             Expanded(
               child: !isActive
                   ? const Center(
@@ -333,24 +322,17 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                               ),
                             ),
                           ),
-
                           spacer,
-
                           HeadVisualizer(pitch: _pitch, roll: _roll, yaw: _yaw),
-
                           spacer,
-
                           Card(
                             elevation: 2,
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Text(
-                                'Pitch: '
-                                '${_pitch.toStringAsFixed(2)}   '
-                                'Roll: '
-                                '${_roll.toStringAsFixed(2)}   '
-                                'Yaw: '
-                                '${_yaw.toStringAsFixed(2)}',
+                                'Pitch: ${_pitch.toStringAsFixed(1)}°   '
+                                'Roll: ${_roll.toStringAsFixed(1)}°   '
+                                'Yaw: ${_yaw.toStringAsFixed(1)}°',
                                 style: textStyle,
                               ),
                             ),
@@ -366,10 +348,11 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   }
 }
 
+/// Network face image with proper 3D rotation
 class HeadVisualizer extends StatelessWidget {
-  final double pitch;
-  final double roll;
-  final double yaw;
+  final double pitch; // degrees
+  final double roll; // degrees
+  final double yaw; // degrees
 
   const HeadVisualizer({
     super.key,
@@ -380,211 +363,72 @@ class HeadVisualizer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Convert degrees → radians + sensitivity
+    const double sensitivity = 0.85;
+    final double yawRad = yaw * math.pi / 180.0 * sensitivity;
+    final double pitchRad = pitch * math.pi / 180.0 * sensitivity;
+    final double rollRad = roll * math.pi / 180.0 * sensitivity;
+
+    // Yaw → Pitch → Roll + perspective
+    final matrix = Matrix4.identity()
+      ..setEntry(3, 2, 0.0015)
+      ..rotateY(yawRad)
+      ..rotateX(pitchRad)
+      ..rotateZ(rollRad);
+
     return Card(
       elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             const Text(
               'Head',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-
-            const SizedBox(height: 6),
-
+            const SizedBox(height: 12),
             SizedBox(
               height: 240,
               width: 240,
-              child: CustomPaint(
-                painter: HeadPainter(pitch: pitch, roll: roll, yaw: yaw),
+              child: Center(
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: matrix,
+                  child: ClipOval(
+                    child: Image.network(
+                      'https://images.pexels.com/photos/39084099/pexels-photo-39084099.jpeg',
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const SizedBox(
+                          width: 200,
+                          height: 200,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 200,
+                          height: 200,
+                          color: Colors.grey.shade300,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.person,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-class HeadPainter extends CustomPainter {
-  final double pitch;
-  final double roll;
-  final double yaw;
-
-  HeadPainter({required this.pitch, required this.roll, required this.yaw});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    final radius = size.width * 0.36;
-
-    canvas.drawCircle(
-      center,
-      radius + 20,
-      Paint()..color = Colors.grey.shade200,
-    );
-
-    canvas.drawCircle(
-      center,
-      radius + 20,
-      Paint()
-        ..color = Colors.grey.shade400
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-
-    canvas.save();
-
-    canvas.translate(center.dx, center.dy);
-
-    canvas.rotate(yaw);
-    canvas.rotate(roll * 0.6);
-
-    final double pitchAmount = pitch.clamp(-1.4, 1.4);
-
-    final double faceShiftY = pitchAmount * radius * 0.85;
-
-    final double faceScaleY = (1.0 - pitchAmount.abs() * 0.40).clamp(0.50, 1.0);
-
-    final headPaint = Paint()..color = const Color(0xFFFFDBAC);
-
-    final outline = Paint()
-      ..color = Colors.brown.shade400
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.8;
-
-    final headRect = Rect.fromCenter(
-      center: Offset(0, faceShiftY * 0.15),
-      width: radius * 2,
-      height: radius * 2 * faceScaleY,
-    );
-
-    canvas.drawOval(headRect, headPaint);
-
-    canvas.drawOval(headRect, outline);
-
-    final double featureY = faceShiftY;
-
-    final eyeWhite = Paint()..color = Colors.white;
-
-    final pupil = Paint()..color = Colors.black87;
-
-    final eyeX = radius * 0.30;
-
-    final eyeBaseY = featureY - radius * 0.20;
-
-    canvas.drawCircle(Offset(-eyeX, eyeBaseY), radius * 0.14, eyeWhite);
-
-    canvas.drawCircle(
-      Offset(-eyeX + math.sin(yaw) * 4, eyeBaseY + pitchAmount * 8),
-      radius * 0.075,
-      pupil,
-    );
-
-    canvas.drawCircle(Offset(eyeX, eyeBaseY), radius * 0.14, eyeWhite);
-
-    canvas.drawCircle(
-      Offset(eyeX + math.sin(yaw) * 4, eyeBaseY + pitchAmount * 8),
-      radius * 0.075,
-      pupil,
-    );
-
-    final brow = Paint()
-      ..color = Colors.brown.shade800
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    final browY = eyeBaseY - 18;
-
-    canvas.drawLine(
-      Offset(-eyeX - 14, browY - pitchAmount * 10),
-      Offset(-eyeX + 14, browY - pitchAmount * 4),
-      brow,
-    );
-
-    canvas.drawLine(
-      Offset(eyeX - 14, browY - pitchAmount * 4),
-      Offset(eyeX + 14, browY - pitchAmount * 10),
-      brow,
-    );
-
-    final noseY = featureY + radius * 0.05;
-
-    final nosePath = Path()
-      ..moveTo(0, noseY - 12)
-      ..lineTo(-7, noseY + 10)
-      ..lineTo(7, noseY + 10)
-      ..close();
-
-    canvas.drawPath(
-      nosePath,
-      Paint()
-        ..color = Colors.brown.shade400
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
-    );
-
-    final mouthY = featureY + radius * 0.42;
-
-    final mouthPaint = Paint()
-      ..color = Colors.red.shade400
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.8
-      ..strokeCap = StrokeCap.round;
-
-    final smileFactor = (-pitchAmount * 15).clamp(-18.0, 18.0);
-
-    final mouthPath = Path()
-      ..moveTo(-radius * 0.24, mouthY)
-      ..quadraticBezierTo(0, mouthY + smileFactor, radius * 0.24, mouthY);
-
-    canvas.drawPath(mouthPath, mouthPaint);
-
-    final earPaint = Paint()..color = const Color(0xFFFFDBAC);
-
-    canvas.drawCircle(
-      Offset(-radius * 0.97, faceShiftY * 0.1),
-      radius * 0.17,
-      earPaint,
-    );
-
-    canvas.drawCircle(
-      Offset(radius * 0.97, faceShiftY * 0.1),
-      radius * 0.17,
-      earPaint,
-    );
-
-    canvas.drawCircle(
-      Offset(-radius * 0.97, faceShiftY * 0.1),
-      radius * 0.17,
-      outline,
-    );
-
-    canvas.drawCircle(
-      Offset(radius * 0.97, faceShiftY * 0.1),
-      radius * 0.17,
-      outline,
-    );
-
-    final arrowPaint = Paint()..color = Colors.blueAccent;
-
-    final arrowPath = Path()
-      ..moveTo(0, -radius * 1.15 + faceShiftY * 0.3)
-      ..lineTo(-13, -radius * 0.93 + faceShiftY * 0.3)
-      ..lineTo(13, -radius * 0.93 + faceShiftY * 0.3)
-      ..close();
-
-    canvas.drawPath(arrowPath, arrowPaint);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant HeadPainter oldDelegate) {
-    return oldDelegate.pitch != pitch ||
-        oldDelegate.roll != roll ||
-        oldDelegate.yaw != yaw;
   }
 }
