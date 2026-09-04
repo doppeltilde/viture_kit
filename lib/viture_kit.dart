@@ -114,6 +114,56 @@ class VitureKit {
     return productIds.isEmpty ? null : productIds.first;
   }
 
+  static T _withNativeProvider<T>(
+    T Function(bindings.VitureKitBindings api, ffi.Pointer<ffi.Void> provider)
+    action,
+  ) {
+    final productId = fetchHidapiVitureProductIds();
+    if (productId == null) {
+      throw StateError('No VITURE device found.');
+    }
+
+    final dylib = ffi.DynamicLibrary.open(_resolveDylibPath());
+    final api = bindings.VitureKitBindings(dylib);
+    final provider = api.xr_device_provider_create(productId);
+
+    if (provider == ffi.nullptr) {
+      throw StateError('Failed to create device provider.');
+    }
+
+    try {
+      api.xr_device_provider_initialize(provider, ffi.nullptr, ffi.nullptr);
+      return action(api, provider);
+    } finally {
+      api.xr_device_provider_shutdown(provider);
+      api.xr_device_provider_destroy(provider);
+    }
+  }
+
+  int getBrightnessLevel() {
+    return _withNativeProvider((api, provider) {
+      return api.xr_device_provider_get_brightness_level(provider);
+    });
+  }
+
+  void setBrightnessLevel(int level) {
+    _withNativeProvider((api, provider) {
+      api.xr_device_provider_set_brightness_level(provider, level);
+    });
+  }
+
+  int getVolumeLevel() {
+    return _withNativeProvider((api, provider) {
+      return api.xr_device_provider_get_volume_level(provider);
+    });
+  }
+
+  void setVolumeLevel(int level) {
+    _withNativeProvider((api, provider) {
+      api.xr_device_provider_set_volume_level(provider, level);
+    });
+  }
+
   Future<void> takeHeadTracking() async {
     final res = fetchHidapiVitureProductIds();
     if (res == null) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -31,6 +32,65 @@ class SensorHomeScreen extends StatefulWidget {
 
 class _SensorHomeScreenState extends State<SensorHomeScreen> {
   final VitureKit _vitureKit = VitureKit();
+
+  double _brightness = 0;
+  double _volume = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialValues();
+    });
+  }
+
+  Future<void> _loadInitialValues() async {
+    try {
+      final levels = await Isolate.run(() {
+        final viture = VitureKit();
+        return (
+          brightness: viture.getBrightnessLevel(),
+          volume: viture.getVolumeLevel(),
+        );
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        _brightness = levels.brightness.toDouble();
+        _volume = levels.volume.toDouble();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('Failed to connect to device: $e');
+    }
+  }
+
+  void _updateBrightness(double value) {
+    setState(() => _brightness = value);
+    try {
+      _vitureKit.setBrightnessLevel(value.toInt());
+    } catch (e) {
+      _showErrorSnackBar('Failed to set brightness: $e');
+    }
+  }
+
+  void _updateVolume(double value) {
+    setState(() => _volume = value);
+    try {
+      _vitureKit.setVolumeLevel(value.toInt());
+    } catch (e) {
+      _showErrorSnackBar('Failed to set volume: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 
   StreamSubscription<ViturePoseData>? _poseSubscription;
 
@@ -176,6 +236,52 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
               },
               child: Text("hidapi"),
             ),
+            ElevatedButton(
+              onPressed: () async {
+                final res = _vitureKit.getBrightnessLevel();
+                print(res);
+              },
+              child: Text("Get Brightness"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final res = _vitureKit.getVolumeLevel();
+                print(res);
+              },
+              child: Text("Get Volume"),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Brightness: ${_brightness.toInt()}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Slider(
+                  value: _brightness,
+                  min: 0,
+                  max: 8,
+                  divisions: 8,
+                  label: '${_brightness.toInt()}',
+                  onChanged: _updateBrightness,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Volume: ${_volume.toInt()}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Slider(
+                  value: _volume,
+                  min: 0,
+                  max: 8,
+                  divisions: 8,
+                  label: '${_volume.toInt()}',
+                  onChanged: _updateVolume,
+                ),
+              ],
+            ),
+
             Card(
               elevation: 2,
               child: SwitchListTile.adaptive(
