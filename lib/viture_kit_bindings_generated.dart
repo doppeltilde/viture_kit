@@ -677,6 +677,900 @@ class VitureKitBindings {
   late final _xr_device_provider_set_manual_exposure_carina =
       _xr_device_provider_set_manual_exposure_carinaPtr
           .asFunction<int Function(XRDeviceProviderHandle, double, int)>();
+
+  /// @brief Retrieve the current electrochromic film mode.
+  ///
+  /// The electrochromic film controls the tint level of the glasses lenses.
+  /// The voltage value interpretation differs between device generations:
+  /// - Gen1 devices: Binary mode (0.0 = off, 1.0 = on)
+  /// - Gen2 devices: Multi-level mode (0.0, 0.125, 0.25, ..., 0.875, 1.0)
+  ///
+  /// For device-specific value ranges, see @ref ValueRanges.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param voltage Output parameter to store the current voltage value (0.0 to 1.0).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or null voltage pointer
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_film_mode(
+    XRDeviceProviderHandle$1 handle,
+    ffi.Pointer<ffi.Float> voltage,
+  ) {
+    return _xr_device_provider_get_film_mode(handle, voltage);
+  }
+
+  late final _xr_device_provider_get_film_modePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(XRDeviceProviderHandle$1, ffi.Pointer<ffi.Float>)
+        >
+      >('xr_device_provider_get_film_mode');
+  late final _xr_device_provider_get_film_mode =
+      _xr_device_provider_get_film_modePtr
+          .asFunction<
+            int Function(XRDeviceProviderHandle$1, ffi.Pointer<ffi.Float>)
+          >();
+
+  /// @brief Set the electrochromic film mode.
+  ///
+  /// The electrochromic film controls the tint level of the glasses lenses.
+  /// The voltage parameter interpretation differs between device generations:
+  /// - Gen1 devices: Any non-zero value enables the film
+  /// - Gen2 devices: Voltage is mapped to discrete tint levels
+  ///
+  /// For device-specific value ranges, see @ref ValueRanges.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param voltage Voltage value in range [0.0, 1.0].
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or voltage out of range
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_film_mode(
+    XRDeviceProviderHandle$1 handle,
+    double voltage,
+  ) {
+    return _xr_device_provider_set_film_mode(handle, voltage);
+  }
+
+  late final _xr_device_provider_set_film_modePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(XRDeviceProviderHandle$1, ffi.Float)
+        >
+      >('xr_device_provider_set_film_mode');
+  late final _xr_device_provider_set_film_mode =
+      _xr_device_provider_set_film_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, double)>();
+
+  /// @brief Retrieve the current screen duty cycle.
+  ///
+  /// Duty cycle controls display brightness by adjusting the percentage of time
+  /// that pixels are active. Higher values result in brighter displays.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Duty cycle value in range [0, 100] on success, or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_duty_cycle(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_get_duty_cycle(handle);
+  }
+
+  late final _xr_device_provider_get_duty_cyclePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_get_duty_cycle',
+      );
+  late final _xr_device_provider_get_duty_cycle =
+      _xr_device_provider_get_duty_cyclePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the screen duty cycle.
+  ///
+  /// Duty cycle controls display brightness by adjusting the percentage of time
+  /// that pixels are active. Higher values result in brighter displays.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param duty_cycle Duty cycle value in range [0, 100].
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or value out of range
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_duty_cycle(
+    XRDeviceProviderHandle$1 handle,
+    int duty_cycle,
+  ) {
+    return _xr_device_provider_set_duty_cycle(handle, duty_cycle);
+  }
+
+  late final _xr_device_provider_set_duty_cyclePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_set_duty_cycle');
+  late final _xr_device_provider_set_duty_cycle =
+      _xr_device_provider_set_duty_cyclePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current wear status (Gen2 devices only).
+  ///
+  /// Reports whether the glasses are currently being worn, based on the wear
+  /// detection sensor. Wear status changes are also reported through the state
+  /// callback with VITURE_CALLBACK_ID_WEAR_STATUS.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param wear_status Output parameter: 0 = not worn, 1 = worn.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or null wear_status pointer
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device is not a Gen2 device
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_wear_status(
+    XRDeviceProviderHandle$1 handle,
+    ffi.Pointer<ffi.Uint8> wear_status,
+  ) {
+    return _xr_device_provider_get_wear_status(handle, wear_status);
+  }
+
+  late final _xr_device_provider_get_wear_statusPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(XRDeviceProviderHandle$1, ffi.Pointer<ffi.Uint8>)
+        >
+      >('xr_device_provider_get_wear_status');
+  late final _xr_device_provider_get_wear_status =
+      _xr_device_provider_get_wear_statusPtr
+          .asFunction<
+            int Function(XRDeviceProviderHandle$1, ffi.Pointer<ffi.Uint8>)
+          >();
+
+  /// @brief Retrieve the current display mode.
+  ///
+  /// Display mode determines both the resolution and refresh rate of the device output.
+  /// On devices with native DOF support (e.g., Viture Beast), use this interface when in bypass mode.
+  /// See VITURE_DISPLAY_MODE_* constants for valid mode values.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Display mode value (see VITURE_DISPLAY_MODE_* constants) on success,
+  /// or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   Gen2 device is in native mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_display_mode(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_get_display_mode(handle);
+  }
+
+  late final _xr_device_provider_get_display_modePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_get_display_mode',
+      );
+  late final _xr_device_provider_get_display_mode =
+      _xr_device_provider_get_display_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the display mode.
+  ///
+  /// Display mode determines both the resolution and refresh rate of the device output.
+  /// On devices with native DOF support (e.g., Viture Beast), use this interface when in bypass mode.
+  /// See VITURE_DISPLAY_MODE_* constants for valid mode values.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param display_mode Display mode value (see VITURE_DISPLAY_MODE_* constants).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or invalid mode value
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   Gen2 device is in native mode, or mode value unsupported
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_display_mode(
+    XRDeviceProviderHandle$1 handle,
+    int display_mode,
+  ) {
+    return _xr_device_provider_set_display_mode(handle, display_mode);
+  }
+
+  late final _xr_device_provider_set_display_modePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_set_display_mode');
+  late final _xr_device_provider_set_display_mode =
+      _xr_device_provider_set_display_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Set the default display mode applied when the glasses power on.
+  ///
+  /// The configured mode is stored in the device and persists across power cycles.
+  /// See VITURE_DISPLAY_MODE_* constants for valid mode values.
+  ///
+  /// Supported on Viture Luma / Luma Pro only. Other devices (including Luma Ultra)
+  /// return VITURE_GLASSES_ERROR_NOT_SUPPORTED.
+  ///
+  /// @param handle       Valid XRDeviceProvider handle.
+  /// @param display_mode Display mode value (see VITURE_DISPLAY_MODE_* constants).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or invalid mode value
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   not supported on this device
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_default_display_mode(
+    XRDeviceProviderHandle$1 handle,
+    int display_mode,
+  ) {
+    return _xr_device_provider_set_default_display_mode(handle, display_mode);
+  }
+
+  late final _xr_device_provider_set_default_display_modePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_set_default_display_mode');
+  late final _xr_device_provider_set_default_display_mode =
+      _xr_device_provider_set_default_display_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Enable or disable the physical 2D/3D display mode switch button on the glasses.
+  ///
+  /// When disabled, pressing the hardware button has no effect. The setting is
+  /// not persistent and resets to enabled on the next power cycle.
+  ///
+  /// Supported on Viture Luma / Luma Pro only. Other devices (including Luma Ultra)
+  /// return VITURE_GLASSES_ERROR_NOT_SUPPORTED.
+  ///
+  /// @param handle  Valid XRDeviceProvider handle.
+  /// @param enabled 1 to enable the button, 0 to disable it.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or invalid enabled value
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   not supported on this device
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_display_mode_button_enabled(
+    XRDeviceProviderHandle$1 handle,
+    int enabled,
+  ) {
+    return _xr_device_provider_set_display_mode_button_enabled(handle, enabled);
+  }
+
+  late final _xr_device_provider_set_display_mode_button_enabledPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_set_display_mode_button_enabled');
+  late final _xr_device_provider_set_display_mode_button_enabled =
+      _xr_device_provider_set_display_mode_button_enabledPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Switch between 2D and 3D display modes (Gen1 and Gen2 bypass mode only).
+  ///
+  /// This is a convenience function that switches between:
+  /// - 2D mode: 1920x1080 @ 60Hz
+  /// - 3D mode: 3840x1080 @ 60Hz
+  ///
+  /// On devices with native DOF support (e.g., Viture Beast) in native mode, use xr_device_provider_native_switch_dimension()
+  /// instead. Calling this function in such state returns VITURE_GLASSES_ERROR_NOT_SUPPORTED.
+  ///
+  /// @note If the device is already in the requested mode, the function returns
+  /// successfully (0) without performing any action.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param is_3d 1 to switch to 3D mode, 0 to switch to 2D mode.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device is Gen2 (use native_switch_dimension instead)
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_switch_dimension(
+    XRDeviceProviderHandle$1 handle,
+    int is_3d,
+  ) {
+    return _xr_device_provider_switch_dimension(handle, is_3d);
+  }
+
+  late final _xr_device_provider_switch_dimensionPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_switch_dimension');
+  late final _xr_device_provider_switch_dimension =
+      _xr_device_provider_switch_dimensionPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current screen brightness level.
+  ///
+  /// Brightness levels vary by device model. For device-specific value ranges,
+  /// see @ref ValueRanges.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Brightness level on success, or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DATA_PARSE      response length or format mismatch
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_brightness_level(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_get_brightness_level(handle);
+  }
+
+  late final _xr_device_provider_get_brightness_levelPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_get_brightness_level',
+      );
+  late final _xr_device_provider_get_brightness_level =
+      _xr_device_provider_get_brightness_levelPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the screen brightness level.
+  ///
+  /// Brightness levels vary by device model. For device-specific value ranges,
+  /// see @ref ValueRanges.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param level Brightness level to set (device-specific range).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or value out of range
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_brightness_level(
+    XRDeviceProviderHandle$1 handle,
+    int level,
+  ) {
+    return _xr_device_provider_set_brightness_level(handle, level);
+  }
+
+  late final _xr_device_provider_set_brightness_levelPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_set_brightness_level');
+  late final _xr_device_provider_set_brightness_level =
+      _xr_device_provider_set_brightness_levelPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current speaker volume level.
+  ///
+  /// Volume levels vary by device model. For device-specific value ranges,
+  /// see @ref ValueRanges.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Volume level on success, or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DATA_PARSE      response length or format mismatch
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_volume_level(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_get_volume_level(handle);
+  }
+
+  late final _xr_device_provider_get_volume_levelPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_get_volume_level',
+      );
+  late final _xr_device_provider_get_volume_level =
+      _xr_device_provider_get_volume_levelPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the speaker volume level.
+  ///
+  /// Volume levels vary by device model. For device-specific value ranges,
+  /// see @ref ValueRanges.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param level Volume level to set (device-specific range).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or value out of range
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_set_volume_level(
+    XRDeviceProviderHandle$1 handle,
+    int level,
+  ) {
+    return _xr_device_provider_set_volume_level(handle, level);
+  }
+
+  late final _xr_device_provider_set_volume_levelPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_set_volume_level');
+  late final _xr_device_provider_set_volume_level =
+      _xr_device_provider_set_volume_levelPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the glasses firmware version string.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param response Output buffer to store the version string. Must be pre-allocated.
+  /// @param length Input/output parameter: on input, specifies the buffer size;
+  /// on output, contains the actual length of the version string.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle, null response, or null length
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_glasses_version(
+    XRDeviceProviderHandle$1 handle,
+    ffi.Pointer<ffi.Char> response,
+    ffi.Pointer<ffi.Int> length,
+  ) {
+    return _xr_device_provider_get_glasses_version(handle, response, length);
+  }
+
+  late final _xr_device_provider_get_glasses_versionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            XRDeviceProviderHandle$1,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Int>,
+          )
+        >
+      >('xr_device_provider_get_glasses_version');
+  late final _xr_device_provider_get_glasses_version =
+      _xr_device_provider_get_glasses_versionPtr
+          .asFunction<
+            int Function(
+              XRDeviceProviderHandle$1,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Int>,
+            )
+          >();
+
+  /// @brief Retrieve the SHA-256 hash of the board serial number.
+  ///
+  /// The raw serial number is never exposed. The caller receives a 32-byte
+  /// SHA-256 digest that uniquely identifies the device and can be used for
+  /// device binding or license validation without leaking the actual SN.
+  ///
+  /// @param handle    Valid XRDeviceProvider handle.
+  /// @param hash_out  Caller-allocated buffer of at least 32 bytes to receive the digest.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or null hash_out
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_get_sn_hash(
+    XRDeviceProviderHandle$1 handle,
+    ffi.Pointer<ffi.Uint8> hash_out,
+  ) {
+    return _xr_device_provider_get_sn_hash(handle, hash_out);
+  }
+
+  late final _xr_device_provider_get_sn_hashPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(XRDeviceProviderHandle$1, ffi.Pointer<ffi.Uint8>)
+        >
+      >('xr_device_provider_get_sn_hash');
+  late final _xr_device_provider_get_sn_hash =
+      _xr_device_provider_get_sn_hashPtr
+          .asFunction<
+            int Function(XRDeviceProviderHandle$1, ffi.Pointer<ffi.Uint8>)
+          >();
+
+  /// @brief Retrieve the current mode for Gen2 devices (bypass / native).
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Returns whether the device is operating in bypass mode or native mode:
+  /// - 0 (bypass mode): native DOF tracking is disabled; use xr_device_provider_get/set_display_mode
+  /// for display mode control.
+  /// - 1 (native mode): native DOF tracking is active; use xr_device_provider_native_get/set_display_mode
+  /// for display mode control.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return 0 (bypass) or 1 (native) on success, or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   feature not supported by device
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_get_mode(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_native_get_mode(handle);
+  }
+
+  late final _xr_device_provider_native_get_modePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_get_mode',
+      );
+  late final _xr_device_provider_native_get_mode =
+      _xr_device_provider_native_get_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the native mode for Gen2 devices (bypass / native).
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// After calling this function, call xr_device_provider_native_set_display_mode() to complete
+  /// the mode switch by setting an appropriate display mode for the new mode.
+  /// Controls whether the device operates in bypass mode or native mode:
+  /// - 0 (bypass mode): disables native DOF tracking; display mode is controlled via
+  /// xr_device_provider_get/set_display_mode using standard VITURE_DISPLAY_MODE_* values.
+  /// - 1 (native mode): enables native DOF tracking; display mode is controlled via
+  /// xr_device_provider_native_get/set_display_mode using VITURE_NATIVE_DISPLAY_MODE_* values.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param mode 0 for bypass mode, 1 for native mode.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   feature not supported by device
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device rejected the command
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_set_mode(
+    XRDeviceProviderHandle$1 handle,
+    int mode,
+  ) {
+    return _xr_device_provider_native_set_mode(handle, mode);
+  }
+
+  late final _xr_device_provider_native_set_modePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_set_mode');
+  late final _xr_device_provider_native_set_mode =
+      _xr_device_provider_native_set_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current native DOF tracking type on Gen2 devices.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Returns the active DOF tracking type when the device is in native mode.
+  /// See VITURE_NATIVE_DOF_* constants for valid values (e.g., VITURE_NATIVE_DOF_3,
+  /// VITURE_NATIVE_DOF_SMOOTH_FOLLOW).
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return DOF tracking type (see VITURE_NATIVE_DOF_* constants) on success,
+  /// or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_get_dof(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_native_get_dof(handle);
+  }
+
+  late final _xr_device_provider_native_get_dofPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_get_dof',
+      );
+  late final _xr_device_provider_native_get_dof =
+      _xr_device_provider_native_get_dofPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the native DOF tracking type on Gen2 devices.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Sets the active DOF tracking type when the device is in native mode.
+  /// See VITURE_NATIVE_DOF_* constants for valid values (e.g., VITURE_NATIVE_DOF_3,
+  /// VITURE_NATIVE_DOF_SMOOTH_FOLLOW).
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param dof DOF tracking type to set (see VITURE_NATIVE_DOF_* constants).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device rejected the command
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_set_dof(
+    XRDeviceProviderHandle$1 handle,
+    int dof,
+  ) {
+    return _xr_device_provider_native_set_dof(handle, dof);
+  }
+
+  late final _xr_device_provider_native_set_dofPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_set_dof');
+  late final _xr_device_provider_native_set_dof =
+      _xr_device_provider_native_set_dofPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Recenter the display for native DOF tracking.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// It resets the current head pose to the center position for DOF tracking when the device is in native mode.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_recenter_dof(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_native_recenter_dof(handle);
+  }
+
+  late final _xr_device_provider_native_recenter_dofPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_recenter_dof',
+      );
+  late final _xr_device_provider_native_recenter_dof =
+      _xr_device_provider_native_recenter_dofPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Retrieve the current display mode for Gen2 devices.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Use this when the device is operating in native DOF mode (not bypass).
+  /// See VITURE_NATIVE_DISPLAY_MODE_* constants for valid mode values.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Display mode value (see VITURE_NATIVE_DISPLAY_MODE_* constants) on success,
+  /// or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_get_display_mode(
+    XRDeviceProviderHandle$1 handle,
+  ) {
+    return _xr_device_provider_native_get_display_mode(handle);
+  }
+
+  late final _xr_device_provider_native_get_display_modePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_get_display_mode',
+      );
+  late final _xr_device_provider_native_get_display_mode =
+      _xr_device_provider_native_get_display_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the display mode for native DOF operation on Gen2 devices.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Use this when the device is operating in native DOF mode (not bypass).
+  /// See VITURE_NATIVE_DISPLAY_MODE_* constants for valid mode values.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param display_mode Display mode value (see VITURE_NATIVE_DISPLAY_MODE_* constants).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or invalid mode value
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_set_display_mode(
+    XRDeviceProviderHandle$1 handle,
+    int display_mode,
+  ) {
+    return _xr_device_provider_native_set_display_mode(handle, display_mode);
+  }
+
+  late final _xr_device_provider_native_set_display_modePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_set_display_mode');
+  late final _xr_device_provider_native_set_display_mode =
+      _xr_device_provider_native_set_display_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current side mode for Gen2 devices in native mode.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast)
+  /// and requires the device to be in native mode (mode == 1).
+  /// Side mode shifts the displayed image to one side of the glasses.
+  /// - 0: side mode disabled
+  /// - 1: side mode enabled
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return 0 (disabled) or 1 (enabled) on success, or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   feature not supported, or device is not in native mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_get_side_mode(XRDeviceProviderHandle$1 handle) {
+    return _xr_device_provider_native_get_side_mode(handle);
+  }
+
+  late final _xr_device_provider_native_get_side_modePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_get_side_mode',
+      );
+  late final _xr_device_provider_native_get_side_mode =
+      _xr_device_provider_native_get_side_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the side mode for Gen2 devices in native mode.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast)
+  /// and requires the device to be in native mode (mode == 1).
+  /// Side mode shifts the displayed image to one side of the glasses.
+  /// - 0: disable side mode
+  /// - 1: enable side mode
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param side_mode 0 to disable side mode, 1 to enable side mode.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   feature not supported, or device is not in native mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device rejected the command
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_set_side_mode(
+    XRDeviceProviderHandle$1 handle,
+    int side_mode,
+  ) {
+    return _xr_device_provider_native_set_side_mode(handle, side_mode);
+  }
+
+  late final _xr_device_provider_native_set_side_modePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_set_side_mode');
+  late final _xr_device_provider_native_set_side_mode =
+      _xr_device_provider_native_set_side_modePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Switch between 2D and 3D display modes in native DOF mode on Gen2 devices.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Switches between:
+  /// - 2D mode: VITURE_NATIVE_DISPLAY_MODE_1920_1080_60HZ
+  /// - 3D mode: VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1080_60HZ
+  /// when the device is operating in native mode.
+  ///
+  /// @note If the device is already in the requested mode, the function returns
+  /// successfully (0) without performing any action.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param is_3d 1 to switch to 3D mode, 0 to switch to 2D mode.
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_switch_dimension(
+    XRDeviceProviderHandle$1 handle,
+    int is_3d,
+  ) {
+    return _xr_device_provider_native_switch_dimension(handle, is_3d);
+  }
+
+  late final _xr_device_provider_native_switch_dimensionPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_switch_dimension');
+  late final _xr_device_provider_native_switch_dimension =
+      _xr_device_provider_native_switch_dimensionPtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current display distance setting.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Display distance controls the virtual distance of the display content when the device is operating in native mode.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Display distance value in range [1, 10] on success, or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_get_display_distance(
+    XRDeviceProviderHandle$1 handle,
+  ) {
+    return _xr_device_provider_native_get_display_distance(handle);
+  }
+
+  late final _xr_device_provider_native_get_display_distancePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_get_display_distance',
+      );
+  late final _xr_device_provider_native_get_display_distance =
+      _xr_device_provider_native_get_display_distancePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the display distance.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Display distance controls the virtual distance of the display content when the device is operating in native mode.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param distance Display distance value in range [1, 10].
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or value out of range
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_set_display_distance(
+    XRDeviceProviderHandle$1 handle,
+    int distance,
+  ) {
+    return _xr_device_provider_native_set_display_distance(handle, distance);
+  }
+
+  late final _xr_device_provider_native_set_display_distancePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_set_display_distance');
+  late final _xr_device_provider_native_set_display_distance =
+      _xr_device_provider_native_set_display_distancePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
+
+  /// @brief Retrieve the current display size setting.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Display size controls the apparent size of the virtual display when the device is operating in native mode.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @return Display size value (see VITURE_DISPLAY_SIZE_* constants) in range [0, 4] on success,
+  /// or a negative error code:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_DEVICE_REJECTED device returned error status
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_get_display_size(
+    XRDeviceProviderHandle$1 handle,
+  ) {
+    return _xr_device_provider_native_get_display_size(handle);
+  }
+
+  late final _xr_device_provider_native_get_display_sizePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1)>>(
+        'xr_device_provider_native_get_display_size',
+      );
+  late final _xr_device_provider_native_get_display_size =
+      _xr_device_provider_native_get_display_sizePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1)>();
+
+  /// @brief Set the display size.
+  ///
+  /// This function is only available on devices with native DOF support (e.g., Viture Beast).
+  /// Display size controls the apparent size of the virtual display when the device is operating in native mode.
+  ///
+  /// @param handle Valid XRDeviceProvider handle.
+  /// @param size Display size value (see VITURE_DISPLAY_SIZE_* constants).
+  /// @return VITURE_GLASSES_SUCCESS on success, or:
+  /// - VITURE_GLASSES_ERROR_INVALID_PARAM   null handle or invalid size value
+  /// - VITURE_GLASSES_ERROR_USB_UNAVAILABLE USB not available
+  /// - VITURE_GLASSES_ERROR_NOT_SUPPORTED   device does not support native DOF, or device is in bypass mode
+  /// - VITURE_GLASSES_ERROR_USB_EXEC        USB execution error
+  /// - VITURE_GLASSES_ERROR_UNKNOWN         other error
+  int xr_device_provider_native_set_display_size(
+    XRDeviceProviderHandle$1 handle,
+    int size,
+  ) {
+    return _xr_device_provider_native_set_display_size(handle, size);
+  }
+
+  late final _xr_device_provider_native_set_display_sizePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(XRDeviceProviderHandle$1, ffi.Int)>
+      >('xr_device_provider_native_set_display_size');
+  late final _xr_device_provider_native_set_display_size =
+      _xr_device_provider_native_set_display_sizePtr
+          .asFunction<int Function(XRDeviceProviderHandle$1, int)>();
 }
 
 /// @brief Handle type for XRDeviceProvider instances. This is an opaque pointer
@@ -838,6 +1732,12 @@ typedef DartXRCameraCallbackFunction = void Function(
 typedef XRCameraCallback =
     ffi.Pointer<ffi.NativeFunction<XRCameraCallbackFunction>>;
 
+/// @brief Opaque handle to an XRDeviceProvider instance.
+///
+/// This handle is used to identify and interact with a specific Viture glasses device.
+/// It must be obtained through xr_device_provider_create() before use.
+typedef XRDeviceProviderHandle$1 = ffi.Pointer<ffi.Void>;
+
 const int VITURE_GLASSES_SUCCESS = 0;
 
 const int VITURE_GLASSES_ERROR_INVALID_PARAM = -1;
@@ -877,3 +1777,127 @@ const int VITURE_VERSION_MINOR = 4;
 const int VITURE_VERSION_PATCH = 0;
 
 const String VITURE_VERSION_STRING = '2.4.0';
+
+const String VITURE_MARKET_NAME_ONE = 'One';
+
+const String VITURE_MARKET_NAME_PRO = 'Pro';
+
+const String VITURE_MARKET_NAME_LITE = 'Lite';
+
+const String VITURE_MARKET_NAME_LUMA = 'Luma';
+
+const String VITURE_MARKET_NAME_LUMA_PRO = 'Luma Pro';
+
+const String VITURE_MARKET_NAME_LUMA_ULTRA = 'Luma Ultra';
+
+const String VITURE_MARKET_NAME_LUMA_CYBER = 'Luma Cyber';
+
+const String VITURE_MARKET_NAME_BEAST = 'Beast';
+
+const String VITURE_MARKET_NAME_PRO2 = 'Pro 2';
+
+const int VITURE_DISPLAY_MODE_1920_1080_60HZ = 49;
+
+const int VITURE_DISPLAY_MODE_3840_1080_60HZ = 50;
+
+const int VITURE_DISPLAY_MODE_1920_1080_90HZ = 51;
+
+const int VITURE_DISPLAY_MODE_1920_1080_120HZ = 52;
+
+const int VITURE_DISPLAY_MODE_3840_1080_90HZ = 53;
+
+const int VITURE_DISPLAY_MODE_1920_1200_60HZ = 65;
+
+const int VITURE_DISPLAY_MODE_3840_1200_60HZ = 66;
+
+const int VITURE_DISPLAY_MODE_1920_1200_90HZ = 67;
+
+const int VITURE_DISPLAY_MODE_1920_1200_120HZ = 68;
+
+const int VITURE_DISPLAY_MODE_3840_1200_90HZ = 69;
+
+const int VITURE_DUTY_CYCLE_H = 98;
+
+const int VITURE_DUTY_CYCLE_M = 42;
+
+const int VITURE_DUTY_CYCLE_L = 30;
+
+const int VITURE_DISPLAY_SIZE_SMALL = 0;
+
+const int VITURE_DISPLAY_SIZE_MEDIUM = 1;
+
+const int VITURE_DISPLAY_SIZE_LARGE = 2;
+
+const int VITURE_DISPLAY_SIZE_EXTRA = 3;
+
+const int VITURE_DISPLAY_SIZE_ULTRA = 4;
+
+const int VITURE_NATIVE_DOF_0 = 0;
+
+const int VITURE_NATIVE_DOF_3 = 1;
+
+const int VITURE_NATIVE_DOF_SMOOTH_FOLLOW = 2;
+
+const int VITURE_NATIVE_DISPLAY_MODE_1920_1080_60HZ = 49;
+
+const int VITURE_NATIVE_DISPLAY_MODE_1920_1080_90HZ = 50;
+
+const int VITURE_NATIVE_DISPLAY_MODE_1920_1080_120HZ = 51;
+
+const int VITURE_NATIVE_DISPLAY_MODE_1920_1200_60HZ = 52;
+
+const int VITURE_NATIVE_DISPLAY_MODE_1920_1200_90HZ = 53;
+
+const int VITURE_NATIVE_DISPLAY_MODE_1920_1200_120HZ = 54;
+
+const int VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1080_60HZ = 55;
+
+const int VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1080_90HZ = 56;
+
+const int VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1080_120HZ = 57;
+
+const int VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1200_60HZ = 58;
+
+const int VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1200_90HZ = 59;
+
+const int VITURE_NATIVE_DISPLAY_MODE_3D_SBS_3840_1200_120HZ = 60;
+
+const int VITURE_NATIVE_DISPLAY_MODE_ULTRAWIDE_3840_1080_60HZ = 61;
+
+const int VITURE_NATIVE_DISPLAY_MODE_ULTRAWIDE_3840_1080_90HZ = 62;
+
+const int VITURE_NATIVE_DISPLAY_MODE_ULTRAWIDE_3840_1080_120HZ = 63;
+
+const int VITURE_NATIVE_DISPLAY_MODE_ULTRAWIDE_3840_1200_60HZ = 64;
+
+const int VITURE_NATIVE_DISPLAY_MODE_ULTRAWIDE_3840_1200_90HZ = 65;
+
+const int VITURE_NATIVE_DISPLAY_MODE_ULTRAWIDE_3840_1200_120HZ = 66;
+
+const int VITURE_IMU_MODE_RAW = 0;
+
+const int VITURE_IMU_MODE_POSE = 1;
+
+const int VITURE_IMU_FREQUENCY_LOW = 0;
+
+const int VITURE_IMU_FREQUENCY_MEDIUM_LOW = 1;
+
+const int VITURE_IMU_FREQUENCY_MEDIUM = 2;
+
+const int VITURE_IMU_FREQUENCY_MEDIUM_HIGH = 3;
+
+const int VITURE_IMU_FREQUENCY_HIGH = 4;
+
+const int VITURE_IMU_FREQUENCY_ULTRA_HIGH = 5;
+
+const int VITURE_CALLBACK_ID_BRIGHTNESS = 0;
+
+const int VITURE_CALLBACK_ID_VOLUME = 1;
+
+const int VITURE_CALLBACK_ID_DISPLAY_MODE = 2;
+
+const int VITURE_CALLBACK_ID_ELECTROCHROMIC_FILM = 3;
+
+const int VITURE_CALLBACK_ID_NATIVE_DOF = 4;
+
+const int VITURE_CALLBACK_ID_WEAR_STATUS = 5;

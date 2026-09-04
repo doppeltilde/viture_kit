@@ -11,6 +11,7 @@ headers:
     - 'src/include/viture_device.h'
     - 'src/include/viture_device_carina.h'
     - 'src/include/viture_version.h'
+    - 'src/include/viture_protocol_public.h'
   include-directives:
     - 'src/include/*.h'
 
