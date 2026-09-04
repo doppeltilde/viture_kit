@@ -1,0 +1,3 @@
+tags:
+  hardware:
+    skip: "Requires physical HID hardware"

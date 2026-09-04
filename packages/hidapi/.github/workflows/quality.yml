@@ -1,0 +1,44 @@
+# quality — everything this repository verifies, behind one required check.
+#
+# GitHub names a check run after the JOB, so the job id `quality` is the
+# context registered in the branch ruleset. The work is one job because it
+# is one setup: splitting analyze, format and test would pay for the Dart
+# SDK and libudev three times over for no extra signal.
+name: quality
+
+on:
+  pull_request:
+  merge_group: # required for merge-queue compatibility
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      # Classify the triggering commit so Flywheel's own commits
+      # (chore(release):, back-merge) skip the suite. A step-level `if:`
+      # that evaluates false still reports `success`, so the required check
+      # stays satisfied rather than hanging — which is why this is a single
+      # job with guarded steps and not a job-level `if:`.
+      - id: classify
+        uses: point-source/flywheel/classify@59758d1940ebe054ce9fdd4b7a7dc79a0cf235e0 # v2.1.0
+      - uses: actions/checkout@v4
+        if: steps.classify.outputs.derived_release_commit != 'true'
+      - uses: dart-lang/setup-dart@v1
+        if: steps.classify.outputs.derived_release_commit != 'true'
+        with:
+          sdk: '3.10.0'
+      - name: Install libudev
+        if: steps.classify.outputs.derived_release_commit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev
+      - name: Resolve dependencies
+        if: steps.classify.outputs.derived_release_commit != 'true'
+        run: dart pub get
+      - name: Analyze
+        if: steps.classify.outputs.derived_release_commit != 'true'
+        run: dart analyze --fatal-infos
+      - name: Format
+        if: steps.classify.outputs.derived_release_commit != 'true'
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Test
+        if: steps.classify.outputs.derived_release_commit != 'true'
+        run: dart test

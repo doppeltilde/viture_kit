@@ -3,6 +3,9 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:viture_kit/helper/hiadpi_helper.dart';
+import 'package:viture_kit/helper/libusb_helper.dart';
+
 import 'viture_kit_bindings_generated.dart' as bindings;
 
 /// Formatted pose data read from the glasses.
@@ -37,13 +40,6 @@ class ViturePoseData {
         'ts: $timestamp'
         ')';
   }
-}
-
-/// Product IDs for VITURE XR Glasses models.
-abstract class VitureProductId {
-  static const int vitureOne = 0x35CA;
-  static const int viturePro = 0x35CB;
-  static const int viturePro2 = 0x1301;
 }
 
 /// IMU modes matching VITURE protocol.
@@ -108,13 +104,32 @@ class VitureKit {
     );
   }
 
+  /// Fetch the Viture Glasses Product Id dynamically.
+  /// Uses libusb https://github.com/libusb/libusb
+  static int? fetchVitureProductIdWithLibusb() {
+    final productIds = LibusbHelper.fetchLibUsbVitureProductIds();
+    return productIds.isEmpty ? null : productIds.first;
+  }
+
+  /// Fetch the Viture Glasses Product Id dynamically.
+  /// Uses HIDAPI https://github.com/libusb/hidapi
+  static int? fetchHidapiVitureProductIds() {
+    final productIds = HIDAPIHelper.fetchHidapiVitureProductIds();
+    return productIds.isEmpty ? null : productIds.first;
+  }
+
   /// Take ownership of the glasses IMU.
   ///
   /// SpaceWalker's tracking will stop while this app owns
   /// the IMU.
-  Future<void> takeHeadTracking({
-    int productId = VitureProductId.viturePro2,
-  }) async {
+  Future<void> takeHeadTracking() async {
+    final res = fetchHidapiVitureProductIds();
+    if (res == null) {
+      return;
+    }
+
+    final productId = res;
+
     if (_isHeadTrackingActive) {
       return;
     }
@@ -338,12 +353,9 @@ class VitureKit {
     }
   }
 
-  Future<void> setHeadTrackingEnabled(
-    bool enabled, {
-    int productId = VitureProductId.viturePro2,
-  }) async {
+  Future<void> setHeadTrackingEnabled(bool enabled) async {
     if (enabled) {
-      await takeHeadTracking(productId: productId);
+      await takeHeadTracking();
     } else {
       await releaseHeadTracking();
     }

@@ -1,0 +1,28 @@
+# Flywheel release configuration.
+#
+# `release: production` cuts a release on every push to the managed branch.
+# `auto_merge` lists the conventional-commit types that merge without review;
+# every other type gates on a human. `!`-suffixed types are separate entries,
+# so `fix` does not imply `fix!`.
+#
+# Every version-bumping type — feat, fix, perf, and any breaking variant —
+# routes to human review, so a release is never cut unattended. Non-bumping
+# types auto-merge once required checks pass.
+#
+# `chore` covers dependency bumps, so listing it means Dependabot updates can
+# land unreviewed. Flywheel gates that separately: those PRs auto-merge only
+# once the App private key is also registered in the Dependabot secret store.
+flywheel:
+  streams:
+    - name: main-line
+      branches:
+        - name: main
+          release: production
+          auto_merge: [chore, docs, style, test, ci, build, refactor]
+
+  release_files:
+    # release-please owned pubspec.yaml under its `dart` release type;
+    # flywheel keeps it current for the same reader — pub.dev.
+    - path: pubspec.yaml
+      pattern: '^version: .*'
+      replacement: 'version: ${version}'

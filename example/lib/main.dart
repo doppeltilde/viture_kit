@@ -162,6 +162,20 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ElevatedButton(
+              onPressed: () async {
+                final res = VitureKit.fetchVitureProductIdWithLibusb();
+                print(res);
+              },
+              child: Text("libusb"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final res = VitureKit.fetchHidapiVitureProductIds();
+                print(res);
+              },
+              child: Text("hidapi"),
+            ),
             Card(
               elevation: 2,
               child: SwitchListTile.adaptive(
