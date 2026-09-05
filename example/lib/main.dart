@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -35,6 +34,18 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   double _brightness = 0;
   double _volume = 0;
 
+  StreamSubscription<VitureSensorData>? _poseSubscription;
+
+  bool _isBusy = false;
+  String? _busyMessage;
+
+  double _pitch = 0.0;
+  double _roll = 0.0;
+  double _yaw = 0.0;
+
+  static const double pitchThreshold = 15.0;
+  static const double yawThreshold = 15.0;
+
   @override
   void initState() {
     super.initState();
@@ -43,26 +54,42 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
     });
   }
 
-  Future<void> _loadInitialValues() async {
+  Future<void> _runWithLoading(
+    Future<void> Function() action, {
+    String message = 'Please wait…',
+  }) async {
+    if (_isBusy) return;
+    setState(() {
+      _isBusy = true;
+      _busyMessage = message;
+    });
     try {
-      final levels = await Isolate.run(() {
-        final viture = VitureKit();
-        return (
-          brightness: viture.getBrightnessLevel(),
-          volume: viture.getVolumeLevel(),
-        );
-      });
-
-      if (!mounted) return;
-
-      setState(() {
-        _brightness = levels.brightness.toDouble();
-        _volume = levels.volume.toDouble();
-      });
-    } catch (e) {
-      if (!mounted) return;
-      _showErrorSnackBar('Failed to connect to device: $e');
+      await action();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+          _busyMessage = null;
+        });
+      }
     }
+  }
+
+  Future<void> _loadInitialValues() async {
+    await _runWithLoading(() async {
+      try {
+        final brightness = _vitureKit.getBrightnessLevel();
+        final volume = _vitureKit.getVolumeLevel();
+        if (!mounted) return;
+        setState(() {
+          _brightness = brightness.toDouble();
+          _volume = volume.toDouble();
+        });
+      } catch (e) {
+        if (!mounted) return;
+        _showErrorSnackBar('Failed to connect to device: $e');
+      }
+    }, message: 'Connecting to device…');
   }
 
   void _updateBrightness(double value) {
@@ -88,72 +115,53 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  StreamSubscription<VitureSensorData>? _poseSubscription;
-
-  bool _isBusy = false;
-
-  double _pitch = 0.0;
-  double _roll = 0.0;
-  double _yaw = 0.0;
-
-  // Values from Viture are in degrees
-  static const double pitchThreshold = 15.0;
-  static const double yawThreshold = 15.0;
-
   Future<void> _onToggleChanged(bool enabled) async {
-    if (_isBusy) return;
-
-    setState(() => _isBusy = true);
-
-    try {
-      if (enabled) {
-        _poseSubscription = _vitureKit.sensorStream.listen(
-          (data) {
-            if (!mounted) return;
-
-            setState(() {
-              _pitch = -data.pitch;
-              _roll = -data.roll;
-              _yaw = -data.yaw;
-            });
-          },
-          onError: (Object error) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Head tracking error: $error')),
+    await _runWithLoading(
+      () async {
+        try {
+          if (enabled) {
+            _poseSubscription = _vitureKit.sensorStream.listen(
+              (data) {
+                if (!mounted) return;
+                setState(() {
+                  _pitch = -data.pitch;
+                  _roll = -data.roll;
+                  _yaw = -data.yaw;
+                });
+              },
+              onError: (Object error) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Head tracking error: $error')),
+                );
+              },
             );
-          },
-        );
-
-        await _vitureKit.startHeadTracking();
-      } else {
-        await _poseSubscription?.cancel();
-        _poseSubscription = null;
-        await _vitureKit.releaseHeadTracking();
-
-        if (mounted) {
-          setState(() {
-            _pitch = 0.0;
-            _roll = 0.0;
-            _yaw = 0.0;
-          });
+            await _vitureKit.startHeadTracking();
+          } else {
+            await _poseSubscription?.cancel();
+            _poseSubscription = null;
+            await _vitureKit.releaseHeadTracking();
+            if (mounted) {
+              setState(() {
+                _pitch = 0.0;
+                _roll = 0.0;
+                _yaw = 0.0;
+              });
+            }
+          }
+        } catch (e) {
+          if (enabled) {
+            await _poseSubscription?.cancel();
+            _poseSubscription = null;
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('Failed: $e')));
+          }
         }
-      }
-    } catch (e) {
-      if (enabled) {
-        await _poseSubscription?.cancel();
-        _poseSubscription = null;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isBusy = false);
-      }
-    }
+      },
+      message: enabled ? 'Starting head tracking…' : 'Releasing head tracking…',
+    );
   }
 
   @override
@@ -197,141 +205,192 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('VITURE Head Tracking')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ElevatedButton(
-              onPressed: () async {
-                final res = VitureKit.fetchHidapiVitureProductIds();
-                debugPrint(res.toString());
-              },
-              child: const Text("hidapi"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final res = _vitureKit.getBrightnessLevel();
-                debugPrint(res.toString());
-              },
-              child: const Text("Get Brightness"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final res = _vitureKit.getVolumeLevel();
-                debugPrint(res.toString());
-              },
-              child: const Text("Get Volume"),
-            ),
-            // ElevatedButton(
-            //   onPressed: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(builder: (context) => const CubeView()),
-            //     );
-            //   },
-            //   child: const Text("Cube Scene"),
-            // ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Brightness: ${_brightness.toInt()}',
-                  style: Theme.of(context).textTheme.titleMedium,
+                ElevatedButton(
+                  onPressed: _isBusy
+                      ? null
+                      : () async {
+                          await _runWithLoading(() async {
+                            final res = VitureKit.fetchHidapiVitureProductIds();
+                            debugPrint(res.toString());
+                          }, message: 'Reading HID…');
+                        },
+                  child: const Text('hidapi'),
                 ),
-                Slider(
-                  value: _brightness,
-                  min: 0,
-                  max: 8,
-                  divisions: 8,
-                  label: '${_brightness.toInt()}',
-                  onChanged: _updateBrightness,
+                ElevatedButton(
+                  onPressed: _isBusy
+                      ? null
+                      : () async {
+                          await _runWithLoading(() async {
+                            final res = _vitureKit.getBrightnessLevel();
+                            debugPrint(res.toString());
+                            if (mounted) {
+                              setState(() {
+                                _brightness = res.toDouble();
+                              });
+                            }
+                          }, message: 'Reading brightness…');
+                        },
+                  child: const Text('Get Brightness'),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Volume: ${_volume.toInt()}',
-                  style: Theme.of(context).textTheme.titleMedium,
+                ElevatedButton(
+                  onPressed: _isBusy
+                      ? null
+                      : () async {
+                          await _runWithLoading(() async {
+                            final res = _vitureKit.getVolumeLevel();
+                            debugPrint(res.toString());
+                            if (mounted) {
+                              setState(() {
+                                _volume = res.toDouble();
+                              });
+                            }
+                          }, message: 'Reading volume…');
+                        },
+                  child: const Text('Get Volume'),
                 ),
-                Slider(
-                  value: _volume,
-                  min: 0,
-                  max: 8,
-                  divisions: 8,
-                  label: '${_volume.toInt()}',
-                  onChanged: _updateVolume,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Brightness: ${_brightness.toInt()}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Slider(
+                      value: _brightness,
+                      min: 0,
+                      max: 8,
+                      divisions: 8,
+                      label: '${_brightness.toInt()}',
+                      onChanged: _isBusy ? null : _updateBrightness,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Volume: ${_volume.toInt()}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Slider(
+                      value: _volume,
+                      min: 0,
+                      max: 8,
+                      divisions: 8,
+                      label: '${_volume.toInt()}',
+                      onChanged: _isBusy ? null : _updateVolume,
+                    ),
+                  ],
+                ),
+                Card(
+                  elevation: 2,
+                  child: SwitchListTile.adaptive(
+                    title: const Text('Take head tracking'),
+                    subtitle: Text(
+                      isActive
+                          ? 'Active – SpaceWalker tracking is disabled'
+                          : 'Released – SpaceWalker can use tracking',
+                    ),
+                    value: isActive,
+                    onChanged: _isBusy ? null : _onToggleChanged,
+                  ),
+                ),
+                spacer,
+                Expanded(
+                  child: !isActive
+                      ? const Center(
+                          child: Text(
+                            'Head tracking is released.\n'
+                            'SpaceWalker should be able to use the glasses.',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              Card(
+                                elevation: 3,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 20,
+                                  ),
+                                  child: Text(
+                                    directionText,
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                              spacer,
+                              HeadVisualizer(
+                                pitch: _pitch,
+                                roll: _roll,
+                                yaw: _yaw,
+                              ),
+                              spacer,
+                              Card(
+                                elevation: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Text(
+                                    'Pitch: ${_pitch.toStringAsFixed(1)}°   '
+                                    'Roll: ${_roll.toStringAsFixed(1)}°   '
+                                    'Yaw: ${_yaw.toStringAsFixed(1)}°',
+                                    style: textStyle,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),
-            Card(
-              elevation: 2,
-              child: SwitchListTile.adaptive(
-                title: const Text('Take head tracking'),
-                subtitle: Text(
-                  isActive
-                      ? 'Active – SpaceWalker tracking is disabled'
-                      : 'Released – SpaceWalker can use tracking',
-                ),
-                value: isActive,
-                onChanged: _isBusy ? null : _onToggleChanged,
-              ),
-            ),
-            spacer,
-            if (_isBusy)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            Expanded(
-              child: !isActive
-                  ? const Center(
-                      child: Text(
-                        'Head tracking is released.\n'
-                        'SpaceWalker should be able to use the glasses.',
-                        textAlign: TextAlign.center,
+          ),
+          if (_isBusy)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.55),
+                child: Center(
+                  child: Card(
+                    elevation: 8,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 28,
                       ),
-                    )
-                  : SingleChildScrollView(
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Card(
-                            elevation: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                                horizontal: 20,
-                              ),
-                              child: Text(
-                                directionText,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: CircularProgressIndicator(strokeWidth: 3),
                           ),
-                          spacer,
-                          HeadVisualizer(pitch: _pitch, roll: _roll, yaw: _yaw),
-                          spacer,
-                          Card(
-                            elevation: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Text(
-                                'Pitch: ${_pitch.toStringAsFixed(1)}°   '
-                                'Roll: ${_roll.toStringAsFixed(1)}°   '
-                                'Yaw: ${_yaw.toStringAsFixed(1)}°',
-                                style: textStyle,
-                              ),
+                          if (_busyMessage != null) ...[
+                            const SizedBox(height: 20),
+                            Text(
+                              _busyMessage!,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              textAlign: TextAlign.center,
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -400,7 +459,6 @@ class HeadVisualizer extends StatelessWidget {
                       },
                       errorBuilder: (context, error, stackTrace) {
                         debugPrint('Image load error: $error');
-                        // Nice fallback face
                         return Container(
                           width: 200,
                           height: 200,

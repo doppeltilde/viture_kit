@@ -26,7 +26,7 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `setBrightnessLevel(int level)` | `void` | Sets the brightness level for the connected device. |
 | `getVolumeLevel()` | `int` | Reads the current volume level from the connected device. |
 | `setVolumeLevel(int level)` | `void` | Sets the volume level for the connected device. |
-| `takeHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<void>` | Initializes native bindings and starts receiving IMU data. |
+| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<void>` | Initializes native bindings and starts receiving IMU data. |
 | `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
 | `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |

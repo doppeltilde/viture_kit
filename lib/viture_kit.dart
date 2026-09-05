@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 import 'package:viture_kit/helper/hiadpi_helper.dart';
@@ -109,40 +108,24 @@ abstract class VitureImuFrequency {
   static const int freq240Hz = 3;
 }
 
-class _IsolateInitConfig {
-  final SendPort sendPort;
-  final String dylibPath;
-  final int productId;
-  final int imuMode;
-  final int imuFrequency;
-
-  const _IsolateInitConfig(
-    this.sendPort,
-    this.dylibPath,
-    this.productId,
-    this.imuMode,
-    this.imuFrequency,
-  );
-}
-
-enum _ControlCommand { stop }
-
 class VitureKit {
   static String get sdkVersion => bindings.VITURE_VERSION_STRING;
-
   static int get sdkVersionMajor => bindings.VITURE_VERSION_MAJOR;
   static int get sdkVersionMinor => bindings.VITURE_VERSION_MINOR;
   static int get sdkVersionPatch => bindings.VITURE_VERSION_PATCH;
 
-  Isolate? _workerIsolate;
-  ReceivePort? _receivePort;
-  SendPort? _commandPort;
-
   StreamController<VitureSensorData>? _sensorController;
 
-  Completer<void>? _startCompleter;
-  Completer<void>? _releaseCompleter;
+  bindings.VitureKitBindings? _api;
+  ffi.Pointer<ffi.Void>? _provider;
+  ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? _poseCallable;
+  ffi.NativeCallable<bindings.VitureImuRawCallbackFunction>? _rawCallable;
+  Timer? _carinaTimer;
+  ffi.Pointer<ffi.Float>? _posePtr;
+  ffi.Pointer<ffi.Int>? _statusPtr;
 
+  int _deviceType = -1;
+  int _imuMode = VitureImuMode.pose;
   bool _isHeadTrackingActive = false;
   bool _isStarting = false;
   bool _isReleasing = false;
@@ -158,7 +141,6 @@ class VitureKit {
     if (Platform.isMacOS) {
       return 'glasses.framework/glasses';
     }
-
     throw UnsupportedError(
       'Platform not supported: ${Platform.operatingSystem}',
     );
@@ -190,8 +172,12 @@ class VitureKit {
       api.xr_device_provider_initialize(provider, ffi.nullptr, ffi.nullptr);
       return action(api, provider);
     } finally {
-      api.xr_device_provider_shutdown(provider);
-      api.xr_device_provider_destroy(provider);
+      try {
+        api.xr_device_provider_shutdown(provider);
+      } catch (_) {}
+      try {
+        api.xr_device_provider_destroy(provider);
+      } catch (_) {}
     }
   }
 
@@ -220,25 +206,17 @@ class VitureKit {
   }
 
   Future<void> startHeadTracking({
-    // int imuMode = VitureImuMode.pose,
     int imuFrequency = VitureImuFrequency.freq120Hz,
   }) async {
-    int imuMode = VitureImuMode.pose;
-    final res = fetchHidapiVitureProductIds();
-    if (res == null) {
+    const imuMode = VitureImuMode.pose;
+    final productId = fetchHidapiVitureProductIds();
+    if (productId == null) {
       return;
     }
 
-    final productId = res;
-
-    if (_isHeadTrackingActive) {
+    if (_isHeadTrackingActive || _isStarting) {
       return;
     }
-
-    if (_isStarting) {
-      return _startCompleter?.future ?? Future.value();
-    }
-
     if (_isReleasing) {
       throw StateError(
         'Cannot start head tracking while release is in progress.',
@@ -246,197 +224,227 @@ class VitureKit {
     }
 
     _isStarting = true;
-
-    final receivePort = ReceivePort();
-    _receivePort = receivePort;
-
-    final startCompleter = Completer<void>();
-    _startCompleter = startCompleter;
+    _imuMode = imuMode;
 
     try {
-      final dylibPath = _resolveDylibPath();
+      _sensorController ??= StreamController<VitureSensorData>.broadcast();
 
-      receivePort.listen((dynamic message) {
-        if (message is SendPort) {
-          _commandPort = message;
-          return;
+      final dylib = ffi.DynamicLibrary.open(_resolveDylibPath());
+      _api = bindings.VitureKitBindings(dylib);
+
+      _provider = _api!.xr_device_provider_create(productId);
+      if (_provider == ffi.nullptr) {
+        throw StateError('Failed to create device provider');
+      }
+
+      _api!.xr_device_provider_initialize(_provider!, ffi.nullptr, ffi.nullptr);
+      _api!.xr_device_provider_start(_provider!);
+
+      await Future<void>.delayed(const Duration(milliseconds: 450));
+
+      _deviceType = _api!.xr_device_provider_get_device_type(_provider!);
+
+      if (_deviceType != vitureDeviceTypeCarina) {
+        if (imuMode == VitureImuMode.raw) {
+          _rawCallable =
+              ffi.NativeCallable<
+                bindings.VitureImuRawCallbackFunction
+              >.listener((
+                ffi.Pointer<ffi.Float> dataPtr,
+                int timestamp,
+                int vsync,
+              ) {
+                if (!_isHeadTrackingActive || dataPtr == ffi.nullptr) return;
+                final controller = _sensorController;
+                if (controller == null || controller.isClosed) return;
+                try {
+                  controller.add(
+                    VitureSensorData.raw(
+                      gyroX: dataPtr[0],
+                      gyroY: dataPtr[1],
+                      gyroZ: dataPtr[2],
+                      accelX: dataPtr[3],
+                      accelY: dataPtr[4],
+                      accelZ: dataPtr[5],
+                      magX: dataPtr[6],
+                      magY: dataPtr[7],
+                      magZ: dataPtr[8],
+                      temperature: dataPtr[9],
+                      timestamp: timestamp,
+                      vsync: vsync,
+                    ),
+                  );
+                } catch (_) {}
+              });
+          _api!.xr_device_provider_register_imu_raw_callback(
+            _provider!,
+            _rawCallable!.nativeFunction,
+          );
+        } else {
+          _poseCallable =
+              ffi.NativeCallable<
+                bindings.VitureImuPoseCallbackFunction
+              >.listener((ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
+                if (!_isHeadTrackingActive || dataPtr == ffi.nullptr) return;
+                final controller = _sensorController;
+                if (controller == null || controller.isClosed) return;
+                try {
+                  controller.add(
+                    VitureSensorData.pose(
+                      roll: dataPtr[0],
+                      pitch: dataPtr[1],
+                      yaw: dataPtr[2],
+                      quatW: dataPtr[3],
+                      quatX: dataPtr[4],
+                      quatY: dataPtr[5],
+                      quatZ: dataPtr[6],
+                      timestamp: timestamp,
+                    ),
+                  );
+                } catch (_) {}
+              });
+          _api!.xr_device_provider_register_imu_pose_callback(
+            _provider!,
+            _poseCallable!.nativeFunction,
+          );
         }
 
-        if (message is List) {
-          final controller = _sensorController;
-          if (controller == null || controller.isClosed) {
+        _api!.xr_device_provider_open_imu(_provider!, imuMode, imuFrequency);
+      } else {
+        _posePtr = calloc<ffi.Float>(7);
+        _statusPtr = calloc<ffi.Int>();
+
+        _carinaTimer = Timer.periodic(const Duration(milliseconds: 2), (_) {
+          if (!_isHeadTrackingActive) return;
+          final api = _api;
+          final provider = _provider;
+          final posePtr = _posePtr;
+          final statusPtr = _statusPtr;
+          if (api == null ||
+              provider == null ||
+              posePtr == null ||
+              statusPtr == null) {
             return;
           }
-
           try {
-            if (message.length == 8) {
+            api.xr_device_provider_get_gl_pose_carina(
+              provider,
+              posePtr,
+              0.0,
+              statusPtr,
+            );
+            if (statusPtr.value == 0) {
+              final controller = _sensorController;
+              if (controller == null || controller.isClosed) return;
               controller.add(
                 VitureSensorData.pose(
-                  roll: (message[0] as num).toDouble(),
-                  pitch: (message[1] as num).toDouble(),
-                  yaw: (message[2] as num).toDouble(),
-                  quatW: (message[3] as num).toDouble(),
-                  quatX: (message[4] as num).toDouble(),
-                  quatY: (message[5] as num).toDouble(),
-                  quatZ: (message[6] as num).toDouble(),
-                  timestamp: message[7] as int,
-                ),
-              );
-            } else if (message.length == 12) {
-              controller.add(
-                VitureSensorData.raw(
-                  gyroX: (message[0] as num).toDouble(),
-                  gyroY: (message[1] as num).toDouble(),
-                  gyroZ: (message[2] as num).toDouble(),
-                  accelX: (message[3] as num).toDouble(),
-                  accelY: (message[4] as num).toDouble(),
-                  accelZ: (message[5] as num).toDouble(),
-                  magX: (message[6] as num).toDouble(),
-                  magY: (message[7] as num).toDouble(),
-                  magZ: (message[8] as num).toDouble(),
-                  temperature: (message[9] as num).toDouble(),
-                  timestamp: message[10] as int,
-                  vsync: message[11] as int,
+                  roll: posePtr[0],
+                  pitch: posePtr[1],
+                  yaw: posePtr[2],
+                  quatW: posePtr[3],
+                  quatX: posePtr[4],
+                  quatY: posePtr[5],
+                  quatZ: posePtr[6],
+                  timestamp: DateTime.now().millisecondsSinceEpoch,
                 ),
               );
             }
           } catch (_) {}
-
-          return;
-        }
-
-        if (message is String) {
-          _log(message);
-
-          if (message == 'IMU_READY') {
-            if (!startCompleter.isCompleted) {
-              startCompleter.complete();
-            }
-          } else if (message.startsWith('ERROR:')) {
-            if (!startCompleter.isCompleted) {
-              startCompleter.completeError(Exception(message));
-            }
-
-            if (_releaseCompleter != null && !_releaseCompleter!.isCompleted) {
-              _releaseCompleter!.completeError(Exception(message));
-            }
-          } else if (message == 'IMU_RELEASED') {
-            if (_releaseCompleter != null && !_releaseCompleter!.isCompleted) {
-              _releaseCompleter!.complete();
-            }
-          }
-        }
-      });
-
-      _sensorController ??= StreamController<VitureSensorData>.broadcast();
-
-      _workerIsolate = await Isolate.spawn(
-        _backgroundSensorWorker,
-        _IsolateInitConfig(
-          receivePort.sendPort,
-          dylibPath,
-          productId,
-          imuMode,
-          imuFrequency,
-        ),
-        debugName: 'VitureKitWorker',
-      );
-
-      await startCompleter.future.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('Timed out waiting for VITURE IMU to start.');
-        },
-      );
+        });
+      }
 
       _isHeadTrackingActive = true;
     } catch (e) {
-      _log('Start failed: $e');
-
-      try {
-        _commandPort?.send(_ControlCommand.stop);
-      } catch (_) {}
-
-      _workerIsolate?.kill(priority: Isolate.immediate);
-      _workerIsolate = null;
-      _commandPort = null;
-
-      _receivePort?.close();
-      _receivePort = null;
-
-      _isHeadTrackingActive = false;
-
+      await _forceCleanup();
       rethrow;
     } finally {
-      _startCompleter = null;
       _isStarting = false;
     }
   }
 
   Future<void> releaseHeadTracking() async {
-    if (!_isHeadTrackingActive && !_isStarting && !_isReleasing) {
+    if (!_isHeadTrackingActive && !_isStarting) {
       return;
     }
-
     if (_isReleasing) {
-      return _releaseCompleter?.future ?? Future.value();
+      return;
     }
 
     _isReleasing = true;
-
-    final commandPort = _commandPort;
-    final worker = _workerIsolate;
-
-    if (commandPort == null || worker == null) {
-      _isHeadTrackingActive = false;
+    try {
+      await _forceCleanup();
+    } finally {
       _isReleasing = false;
-      return;
+    }
+  }
+
+  Future<void> _forceCleanup() async {
+    _isHeadTrackingActive = false;
+
+    _carinaTimer?.cancel();
+    _carinaTimer = null;
+
+    if (_posePtr != null) {
+      calloc.free(_posePtr!);
+      _posePtr = null;
+    }
+    if (_statusPtr != null) {
+      calloc.free(_statusPtr!);
+      _statusPtr = null;
     }
 
-    final releaseCompleter = Completer<void>();
-    _releaseCompleter = releaseCompleter;
+    final api = _api;
+    final provider = _provider;
 
-    try {
-      commandPort.send(_ControlCommand.stop);
-
-      await releaseCompleter.future.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException(
-            'Timed out waiting for VITURE IMU to release.',
-          );
-        },
-      );
-
-      worker.kill(priority: Isolate.immediate);
-
-      _workerIsolate = null;
-      _commandPort = null;
-
-      _receivePort?.close();
-      _receivePort = null;
-
-      _isHeadTrackingActive = false;
-    } catch (e) {
-      _log('Release failed: $e');
-
+    if (api != null && provider != null && provider != ffi.nullptr) {
       try {
-        worker.kill(priority: Isolate.immediate);
+        if (_deviceType != vitureDeviceTypeCarina) {
+          if (_imuMode == VitureImuMode.raw) {
+            api.xr_device_provider_register_imu_raw_callback(
+              provider,
+              ffi.nullptr,
+            );
+          } else {
+            api.xr_device_provider_register_imu_pose_callback(
+              provider,
+              ffi.nullptr,
+            );
+          }
+        }
       } catch (_) {}
 
-      _workerIsolate = null;
-      _commandPort = null;
+      try {
+        _poseCallable?.close();
+      } catch (_) {}
+      _poseCallable = null;
 
-      _receivePort?.close();
-      _receivePort = null;
+      try {
+        _rawCallable?.close();
+      } catch (_) {}
+      _rawCallable = null;
 
-      _isHeadTrackingActive = false;
+      if (_deviceType != vitureDeviceTypeCarina) {
+        try {
+          api.xr_device_provider_close_imu(provider, _imuMode);
+        } catch (_) {}
+      }
 
-      rethrow;
-    } finally {
-      _releaseCompleter = null;
-      _isReleasing = false;
+      try {
+        api.xr_device_provider_stop(provider);
+      } catch (_) {}
+
+      try {
+        api.xr_device_provider_shutdown(provider);
+      } catch (_) {}
+
+      try {
+        api.xr_device_provider_destroy(provider);
+      } catch (_) {}
     }
+
+    _provider = null;
+    _api = null;
+    _deviceType = -1;
   }
 
   Future<void> setHeadTrackingEnabled(bool enabled) async {
@@ -447,220 +455,10 @@ class VitureKit {
     }
   }
 
-  static void _log(String message) {
-    print('[VitureKit] $message');
-  }
-
-  static void _backgroundSensorWorker(_IsolateInitConfig config) {
-    final commandPort = ReceivePort();
-    config.sendPort.send(commandPort.sendPort);
-
-    bindings.VitureKitBindings? api;
-    ffi.Pointer<ffi.Void>? provider;
-    ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? poseCallable;
-    ffi.NativeCallable<bindings.VitureImuRawCallbackFunction>? rawCallable;
-
-    bool cleanedUp = false;
-    int deviceType = -1;
-
-    void cleanup() {
-      if (cleanedUp) return;
-      cleanedUp = true;
-
-      _workerLog('Beginning native IMU cleanup');
-
-      try {
-        if (provider != null && api != null) {
-          if (deviceType != vitureDeviceTypeCarina) {
-            if (config.imuMode == VitureImuMode.raw) {
-              api.xr_device_provider_register_imu_raw_callback(
-                provider!,
-                ffi.nullptr,
-              );
-              rawCallable?.close();
-              rawCallable = null;
-            } else {
-              api.xr_device_provider_register_imu_pose_callback(
-                provider!,
-                ffi.nullptr,
-              );
-              poseCallable?.close();
-              poseCallable = null;
-            }
-
-            api.xr_device_provider_close_imu(provider!, config.imuMode);
-          }
-
-          api.xr_device_provider_stop(provider!);
-          api.xr_device_provider_shutdown(provider!);
-          api.xr_device_provider_destroy(provider!);
-
-          provider = null;
-        }
-      } catch (e, st) {
-        _workerLog('ERROR: Native cleanup failed: $e\n$st');
-        config.sendPort.send('ERROR: Cleanup failed: $e');
-      } finally {
-        poseCallable?.close();
-        poseCallable = null;
-        rawCallable?.close();
-        rawCallable = null;
-
-        config.sendPort.send('IMU_RELEASED');
-        commandPort.close();
-        _workerLog('Cleanup complete');
-      }
-    }
-
-    try {
-      final dylib = ffi.DynamicLibrary.open(config.dylibPath);
-      api = bindings.VitureKitBindings(dylib);
-
-      provider = api.xr_device_provider_create(config.productId);
-      if (provider == ffi.nullptr) {
-        config.sendPort.send('ERROR: Failed to create device provider');
-        cleanup();
-        Isolate.exit();
-      }
-
-      api.xr_device_provider_initialize(provider!, ffi.nullptr, ffi.nullptr);
-      api.xr_device_provider_start(provider!);
-
-      sleep(const Duration(milliseconds: 400));
-      deviceType = api.xr_device_provider_get_device_type(provider!);
-
-      if (deviceType != vitureDeviceTypeCarina) {
-        if (config.imuMode == VitureImuMode.raw) {
-          rawCallable =
-              ffi.NativeCallable<
-                bindings.VitureImuRawCallbackFunction
-              >.listener((
-                ffi.Pointer<ffi.Float> dataPtr,
-                int timestamp,
-                int vsync,
-              ) {
-                if (dataPtr == ffi.nullptr || cleanedUp) return;
-
-                try {
-                  final payload = <Object>[
-                    dataPtr[0],
-                    dataPtr[1],
-                    dataPtr[2],
-                    dataPtr[3],
-                    dataPtr[4],
-                    dataPtr[5],
-                    dataPtr[6],
-                    dataPtr[7],
-                    dataPtr[8],
-                    dataPtr[9],
-                    timestamp,
-                    vsync,
-                  ];
-
-                  config.sendPort.send(payload);
-                } catch (_) {}
-              });
-
-          api.xr_device_provider_register_imu_raw_callback(
-            provider!,
-            rawCallable!.nativeFunction,
-          );
-        } else {
-          poseCallable =
-              ffi.NativeCallable<
-                bindings.VitureImuPoseCallbackFunction
-              >.listener((ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
-                if (dataPtr == ffi.nullptr || cleanedUp) return;
-
-                try {
-                  final payload = <Object>[
-                    dataPtr[0],
-                    dataPtr[1],
-                    dataPtr[2],
-                    dataPtr[3],
-                    dataPtr[4],
-                    dataPtr[5],
-                    dataPtr[6],
-                    timestamp,
-                  ];
-
-                  config.sendPort.send(payload);
-                } catch (_) {}
-              });
-
-          api.xr_device_provider_register_imu_pose_callback(
-            provider!,
-            poseCallable!.nativeFunction,
-          );
-        }
-
-        api.xr_device_provider_open_imu(
-          provider!,
-          config.imuMode,
-          config.imuFrequency,
-        );
-      } else {
-        final posePtr = calloc<ffi.Float>(7);
-        final statusPtr = calloc<ffi.Int>();
-
-        Timer.periodic(const Duration(milliseconds: 2), (timer) {
-          if (cleanedUp) {
-            timer.cancel();
-            calloc.free(posePtr);
-            calloc.free(statusPtr);
-            return;
-          }
-
-          api!.xr_device_provider_get_gl_pose_carina(
-            provider!,
-            posePtr,
-            0.0,
-            statusPtr,
-          );
-
-          if (statusPtr.value == 0) {
-            try {
-              config.sendPort.send(<Object>[
-                posePtr[0],
-                posePtr[1],
-                posePtr[2],
-                posePtr[3],
-                posePtr[4],
-                posePtr[5],
-                posePtr[6],
-                DateTime.now().millisecondsSinceEpoch,
-              ]);
-            } catch (_) {}
-          }
-        });
-      }
-
-      config.sendPort.send('IMU_READY');
-    } catch (e, st) {
-      config.sendPort.send('ERROR: $e\n$st');
-      cleanup();
-      Isolate.exit();
-    }
-
-    commandPort.listen((message) {
-      if (message == _ControlCommand.stop) {
-        cleanup();
-        Isolate.exit();
-      }
-    });
-  }
-
-  static void _workerLog(String message) {
-    print('[VitureKitWorker] $message');
-  }
-
   Future<void> dispose() async {
     try {
       await releaseHeadTracking();
-    } catch (e) {
-      _log('Dispose release failed: $e');
-    }
-
+    } catch (_) {}
     await _sensorController?.close();
     _sensorController = null;
   }
