@@ -21,17 +21,17 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 |---|---|---|
 | `sdkVersion` | `String` | Returns the native SDK version string. |
 | `isHeadTrackingActive` | `bool` | Indicates whether IMU data is currently streaming. |
-| `poseStream` | `Stream<ViturePoseData>` | Broadcast stream delivering raw and parsed orientation updates. |
+| `sensorStream` | `Stream<VitureSensorData>` | Broadcast stream delivering raw and parsed orientation updates. |
 | `getBrightnessLevel()` | `int` | Reads the current brightness level from the connected device. |
 | `setBrightnessLevel(int level)` | `void` | Sets the brightness level for the connected device. |
 | `getVolumeLevel()` | `int` | Reads the current volume level from the connected device. |
 | `setVolumeLevel(int level)` | `void` | Sets the volume level for the connected device. |
-| `takeHeadTracking({int productId})` | `Future<void>` | Initializes native bindings and starts receiving IMU data. |
+| `takeHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<void>` | Initializes native bindings and starts receiving IMU data. |
 | `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
 | `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
 
-### Data Class: `ViturePoseData`
+### Data Class: `VitureSensorData`
 
 | Field | Type | Description |
 |---|---|---|
@@ -56,7 +56,7 @@ Future<void> main() async {
   print('VITURE SDK Version: ${VitureKit.sdkVersion}');
 
   // 1. Listen to orientation events
-  final subscription = viture.poseStream.listen((ViturePoseData pose) {
+  final subscription = viture.sensorStream.listen((VitureSensorData pose) {
     print('Roll: ${pose.roll}, Pitch: ${pose.pitch}, Yaw:${pose.yaw}');
     print('Quat: [${pose.quatW},${pose.quatX}, ${pose.quatY},${pose.quatZ}]');
   });

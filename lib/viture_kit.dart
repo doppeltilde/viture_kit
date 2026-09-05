@@ -10,24 +10,32 @@ import 'viture_kit_bindings_generated.dart' as bindings;
 
 const int vitureDeviceTypeCarina = 2;
 
-class ViturePoseData {
+class VitureSensorData {
   final double roll;
   final double pitch;
   final double yaw;
-
   final double quatW;
   final double quatX;
   final double quatY;
   final double quatZ;
 
-  final double? magX;
-  final double? magY;
-  final double? magZ;
-  final double? temperature;
+  final double gyroX;
+  final double gyroY;
+  final double gyroZ;
+  final double accelX;
+  final double accelY;
+  final double accelZ;
+  final double magX;
+  final double magY;
+  final double magZ;
+  final double temperature;
 
   final int timestamp;
+  final int vsync;
 
-  const ViturePoseData({
+  final bool isRaw;
+
+  const VitureSensorData.pose({
     required this.roll,
     required this.pitch,
     required this.yaw,
@@ -35,22 +43,56 @@ class ViturePoseData {
     required this.quatX,
     required this.quatY,
     required this.quatZ,
-    this.magX,
-    this.magY,
-    this.magZ,
-    this.temperature,
     required this.timestamp,
-  });
+  }) : gyroX = 0.0,
+       gyroY = 0.0,
+       gyroZ = 0.0,
+       accelX = 0.0,
+       accelY = 0.0,
+       accelZ = 0.0,
+       magX = 0.0,
+       magY = 0.0,
+       magZ = 0.0,
+       temperature = 0.0,
+       vsync = 0,
+       isRaw = false;
 
-  bool get hasMagnetometer => magX != null && magY != null && magZ != null;
+  const VitureSensorData.raw({
+    required this.gyroX,
+    required this.gyroY,
+    required this.gyroZ,
+    required this.accelX,
+    required this.accelY,
+    required this.accelZ,
+    required this.magX,
+    required this.magY,
+    required this.magZ,
+    required this.temperature,
+    required this.timestamp,
+    required this.vsync,
+  }) : roll = 0.0,
+       pitch = 0.0,
+       yaw = 0.0,
+       quatW = 0.0,
+       quatX = 0.0,
+       quatY = 0.0,
+       quatZ = 0.0,
+       isRaw = true;
 
   @override
   String toString() {
-    return 'ViturePoseData('
+    if (isRaw) {
+      return 'VitureSensorData.raw('
+          'Gyro: [$gyroX, $gyroY, $gyroZ], '
+          'Accel: [$accelX, $accelY, $accelZ], '
+          'Mag: [$magX, $magY, $magZ], '
+          'Temp: $temperature, '
+          'ts: $timestamp, vsync: $vsync'
+          ')';
+    }
+    return 'VitureSensorData.pose('
         'PRY: [$pitch, $roll, $yaw], '
         'Quat: [$quatW, $quatX, $quatY, $quatZ], '
-        '${hasMagnetometer ? 'Mag: [$magX, $magY, $magZ], ' : ''}'
-        '${temperature != null ? 'Temp: $temperature, ' : ''}'
         'ts: $timestamp'
         ')';
   }
@@ -71,8 +113,16 @@ class _IsolateInitConfig {
   final SendPort sendPort;
   final String dylibPath;
   final int productId;
+  final int imuMode;
+  final int imuFrequency;
 
-  const _IsolateInitConfig(this.sendPort, this.dylibPath, this.productId);
+  const _IsolateInitConfig(
+    this.sendPort,
+    this.dylibPath,
+    this.productId,
+    this.imuMode,
+    this.imuFrequency,
+  );
 }
 
 enum _ControlCommand { stop }
@@ -88,7 +138,7 @@ class VitureKit {
   ReceivePort? _receivePort;
   SendPort? _commandPort;
 
-  StreamController<ViturePoseData>? _poseController;
+  StreamController<VitureSensorData>? _sensorController;
 
   Completer<void>? _startCompleter;
   Completer<void>? _releaseCompleter;
@@ -99,10 +149,9 @@ class VitureKit {
 
   bool get isHeadTrackingActive => _isHeadTrackingActive;
 
-  Stream<ViturePoseData> get poseStream {
-    _poseController ??= StreamController<ViturePoseData>.broadcast();
-
-    return _poseController!.stream;
+  Stream<VitureSensorData> get sensorStream {
+    _sensorController ??= StreamController<VitureSensorData>.broadcast();
+    return _sensorController!.stream;
   }
 
   static String _resolveDylibPath() {
@@ -170,7 +219,11 @@ class VitureKit {
     });
   }
 
-  Future<void> takeHeadTracking() async {
+  Future<void> startHeadTracking({
+    // int imuMode = VitureImuMode.pose,
+    int imuFrequency = VitureImuFrequency.freq120Hz,
+  }) async {
+    int imuMode = VitureImuMode.pose;
     final res = fetchHidapiVitureProductIds();
     if (res == null) {
       return;
@@ -195,7 +248,6 @@ class VitureKit {
     _isStarting = true;
 
     final receivePort = ReceivePort();
-
     _receivePort = receivePort;
 
     final startCompleter = Completer<void>();
@@ -210,32 +262,44 @@ class VitureKit {
           return;
         }
 
-        if (message is List && (message.length == 8 || message.length == 12)) {
-          final controller = _poseController;
-
+        if (message is List) {
+          final controller = _sensorController;
           if (controller == null || controller.isClosed) {
             return;
           }
 
-          final hasExtras = message.length == 12;
-
           try {
-            controller.add(
-              ViturePoseData(
-                roll: (message[0] as num).toDouble(),
-                pitch: (message[1] as num).toDouble(),
-                yaw: (message[2] as num).toDouble(),
-                quatW: (message[3] as num).toDouble(),
-                quatX: (message[4] as num).toDouble(),
-                quatY: (message[5] as num).toDouble(),
-                quatZ: (message[6] as num).toDouble(),
-                magX: hasExtras ? (message[7] as num).toDouble() : null,
-                magY: hasExtras ? (message[8] as num).toDouble() : null,
-                magZ: hasExtras ? (message[9] as num).toDouble() : null,
-                temperature: hasExtras ? (message[10] as num).toDouble() : null,
-                timestamp: hasExtras ? message[11] as int : message[7] as int,
-              ),
-            );
+            if (message.length == 8) {
+              controller.add(
+                VitureSensorData.pose(
+                  roll: (message[0] as num).toDouble(),
+                  pitch: (message[1] as num).toDouble(),
+                  yaw: (message[2] as num).toDouble(),
+                  quatW: (message[3] as num).toDouble(),
+                  quatX: (message[4] as num).toDouble(),
+                  quatY: (message[5] as num).toDouble(),
+                  quatZ: (message[6] as num).toDouble(),
+                  timestamp: message[7] as int,
+                ),
+              );
+            } else if (message.length == 12) {
+              controller.add(
+                VitureSensorData.raw(
+                  gyroX: (message[0] as num).toDouble(),
+                  gyroY: (message[1] as num).toDouble(),
+                  gyroZ: (message[2] as num).toDouble(),
+                  accelX: (message[3] as num).toDouble(),
+                  accelY: (message[4] as num).toDouble(),
+                  accelZ: (message[5] as num).toDouble(),
+                  magX: (message[6] as num).toDouble(),
+                  magY: (message[7] as num).toDouble(),
+                  magZ: (message[8] as num).toDouble(),
+                  temperature: (message[9] as num).toDouble(),
+                  timestamp: message[10] as int,
+                  vsync: message[11] as int,
+                ),
+              );
+            }
           } catch (_) {}
 
           return;
@@ -264,11 +328,17 @@ class VitureKit {
         }
       });
 
-      _poseController ??= StreamController<ViturePoseData>.broadcast();
+      _sensorController ??= StreamController<VitureSensorData>.broadcast();
 
       _workerIsolate = await Isolate.spawn(
         _backgroundSensorWorker,
-        _IsolateInitConfig(receivePort.sendPort, dylibPath, productId),
+        _IsolateInitConfig(
+          receivePort.sendPort,
+          dylibPath,
+          productId,
+          imuMode,
+          imuFrequency,
+        ),
         debugName: 'VitureKitWorker',
       );
 
@@ -288,9 +358,7 @@ class VitureKit {
       } catch (_) {}
 
       _workerIsolate?.kill(priority: Isolate.immediate);
-
       _workerIsolate = null;
-
       _commandPort = null;
 
       _receivePort?.close();
@@ -373,19 +441,14 @@ class VitureKit {
 
   Future<void> setHeadTrackingEnabled(bool enabled) async {
     if (enabled) {
-      await takeHeadTracking();
+      await startHeadTracking();
     } else {
       await releaseHeadTracking();
     }
   }
 
   static void _log(String message) {
-    // ignore: avoid_print
     print('[VitureKit] $message');
-  }
-
-  static bool _deviceSupportsMagnetometer(int deviceType) {
-    return deviceType != vitureDeviceTypeCarina;
   }
 
   static void _backgroundSensorWorker(_IsolateInitConfig config) {
@@ -395,6 +458,7 @@ class VitureKit {
     bindings.VitureKitBindings? api;
     ffi.Pointer<ffi.Void>? provider;
     ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? poseCallable;
+    ffi.NativeCallable<bindings.VitureImuRawCallbackFunction>? rawCallable;
 
     bool cleanedUp = false;
     int deviceType = -1;
@@ -408,26 +472,27 @@ class VitureKit {
       try {
         if (provider != null && api != null) {
           if (deviceType != vitureDeviceTypeCarina) {
-            _workerLog('Unregistering IMU callback first');
-            api.xr_device_provider_register_imu_pose_callback(
-              provider!,
-              ffi.nullptr,
-            );
+            if (config.imuMode == VitureImuMode.raw) {
+              api.xr_device_provider_register_imu_raw_callback(
+                provider!,
+                ffi.nullptr,
+              );
+              rawCallable?.close();
+              rawCallable = null;
+            } else {
+              api.xr_device_provider_register_imu_pose_callback(
+                provider!,
+                ffi.nullptr,
+              );
+              poseCallable?.close();
+              poseCallable = null;
+            }
 
-            poseCallable?.close();
-            poseCallable = null;
-
-            _workerLog('Closing IMU');
-            api.xr_device_provider_close_imu(provider!, VitureImuMode.pose);
+            api.xr_device_provider_close_imu(provider!, config.imuMode);
           }
 
-          _workerLog('Stopping provider');
           api.xr_device_provider_stop(provider!);
-
-          _workerLog('Shutting down provider');
           api.xr_device_provider_shutdown(provider!);
-
-          _workerLog('Destroying provider');
           api.xr_device_provider_destroy(provider!);
 
           provider = null;
@@ -438,6 +503,8 @@ class VitureKit {
       } finally {
         poseCallable?.close();
         poseCallable = null;
+        rawCallable?.close();
+        rawCallable = null;
 
         config.sendPort.send('IMU_RELEASED');
         commandPort.close();
@@ -463,11 +530,15 @@ class VitureKit {
       deviceType = api.xr_device_provider_get_device_type(provider!);
 
       if (deviceType != vitureDeviceTypeCarina) {
-        final hasMagnetometer = _deviceSupportsMagnetometer(deviceType);
-
-        poseCallable =
-            ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>.listener(
-              (ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
+        if (config.imuMode == VitureImuMode.raw) {
+          rawCallable =
+              ffi.NativeCallable<
+                bindings.VitureImuRawCallbackFunction
+              >.listener((
+                ffi.Pointer<ffi.Float> dataPtr,
+                int timestamp,
+                int vsync,
+              ) {
                 if (dataPtr == ffi.nullptr || cleanedUp) return;
 
                 try {
@@ -479,33 +550,54 @@ class VitureKit {
                     dataPtr[4],
                     dataPtr[5],
                     dataPtr[6],
+                    dataPtr[7],
+                    dataPtr[8],
+                    dataPtr[9],
+                    timestamp,
+                    vsync,
                   ];
-
-                  if (hasMagnetometer) {
-                    payload.addAll(<Object>[
-                      dataPtr[7],
-                      dataPtr[8],
-                      dataPtr[9],
-                      dataPtr[10],
-                    ]);
-                  }
-
-                  payload.add(timestamp);
 
                   config.sendPort.send(payload);
                 } catch (_) {}
-              },
-            );
+              });
 
-        api.xr_device_provider_register_imu_pose_callback(
-          provider!,
-          poseCallable!.nativeFunction,
-        );
+          api.xr_device_provider_register_imu_raw_callback(
+            provider!,
+            rawCallable!.nativeFunction,
+          );
+        } else {
+          poseCallable =
+              ffi.NativeCallable<
+                bindings.VitureImuPoseCallbackFunction
+              >.listener((ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
+                if (dataPtr == ffi.nullptr || cleanedUp) return;
+
+                try {
+                  final payload = <Object>[
+                    dataPtr[0],
+                    dataPtr[1],
+                    dataPtr[2],
+                    dataPtr[3],
+                    dataPtr[4],
+                    dataPtr[5],
+                    dataPtr[6],
+                    timestamp,
+                  ];
+
+                  config.sendPort.send(payload);
+                } catch (_) {}
+              });
+
+          api.xr_device_provider_register_imu_pose_callback(
+            provider!,
+            poseCallable!.nativeFunction,
+          );
+        }
 
         api.xr_device_provider_open_imu(
           provider!,
-          VitureImuMode.raw,
-          VitureImuFrequency.freq120Hz,
+          config.imuMode,
+          config.imuFrequency,
         );
       } else {
         final posePtr = calloc<ffi.Float>(7);
@@ -559,7 +651,6 @@ class VitureKit {
   }
 
   static void _workerLog(String message) {
-    // ignore: avoid_print
     print('[VitureKitWorker] $message');
   }
 
@@ -570,7 +661,7 @@ class VitureKit {
       _log('Dispose release failed: $e');
     }
 
-    await _poseController?.close();
-    _poseController = null;
+    await _sensorController?.close();
+    _sensorController = null;
   }
 }

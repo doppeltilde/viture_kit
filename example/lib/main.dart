@@ -88,7 +88,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  StreamSubscription<ViturePoseData>? _poseSubscription;
+  StreamSubscription<VitureSensorData>? _poseSubscription;
 
   bool _isBusy = false;
 
@@ -107,7 +107,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
 
     try {
       if (enabled) {
-        _poseSubscription = _vitureKit.poseStream.listen(
+        _poseSubscription = _vitureKit.sensorStream.listen(
           (data) {
             if (!mounted) return;
 
@@ -125,7 +125,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
           },
         );
 
-        await _vitureKit.takeHeadTracking();
+        await _vitureKit.startHeadTracking();
       } else {
         await _poseSubscription?.cancel();
         _poseSubscription = null;
