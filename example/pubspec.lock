@@ -171,13 +171,14 @@ packages:
   hidapi:
     dependency: transitive
     description:
-      name: hidapi
-      sha256: c60370e35ce2a79b5ab82b72dbdd7ff71ed597474f3b290bfe2df3a9ddd4318f
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: "5f2942ba62668708108f44d415ee0b8de10bd698"
+      url: "https://github.com/doppeltilde/hidapi"
+    source: git
     version: "0.1.5"
   hooks:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: hooks
       sha256: eaac480a35ec0814146c2c48d96aaa829e0e44a7662c88ae84c9edf4bc35651f
@@ -257,7 +258,7 @@ packages:
     source: hosted
     version: "1.19.0"
   native_toolchain_c:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: native_toolchain_c
       sha256: a1c26117c48cebe5677b0cf0e33a980a79a7c5577effc86f52e5a0d309cdcb60
@@ -379,7 +380,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.0.4"
   vm_service:
     dependency: transitive
     description:
