@@ -2,6 +2,8 @@
 
 Native Dart bindings for the [VITURE XR Glasses SDK](https://www.viture.com/).
 
+<img src="./sdk-show.png"/>
+
 ## API Reference
 
 ### Core Class: `VitureKit`
@@ -68,3 +70,7 @@ Future<void> main() async {
 ## Caveat
 > [!IMPORTANT]  
 > When the Spacewalker App is open `VitureKit` will assume control of the IMU for head tracking, stopping tracking on the Spacewalker app.
+
+---
+_Notice:_ _This project was initally created to be used in-house, as such the
+development is first and foremost aligned with the internal requirements._
