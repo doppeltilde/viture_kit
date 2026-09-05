@@ -1,12 +1,12 @@
+// ignore_for_file: depend_on_referenced_packages
+
 import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:isolate';
 
-// ignore: depend_on_referenced_packages
 import 'package:ffi/ffi.dart';
 import 'package:viture_kit/helper/hiadpi_helper.dart';
-import 'package:viture_kit/helper/libusb_helper.dart';
 
 import 'viture_kit_bindings_generated.dart' as bindings;
 
@@ -368,6 +368,7 @@ class VitureKit {
   }
 
   static void _log(String message) {
+    // ignore: avoid_print
     print('[VitureKit] $message');
   }
 
@@ -528,6 +529,7 @@ class VitureKit {
   }
 
   static void _workerLog(String message) {
+    // ignore: avoid_print
     print('[VitureKitWorker] $message');
   }
 
