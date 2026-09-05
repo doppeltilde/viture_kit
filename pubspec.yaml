@@ -1,6 +1,6 @@
 name: viture_kit
 description: "Native Dart FFI bindings for the VITURE XR Glasses SDK."
-version: 0.0.6
+version: 0.0.7
 homepage: "https://www.viture.com/"
 repository: "https://github.com/doppeltilde/viture_kit"
 license: BSD-3-Clause
@@ -22,7 +22,6 @@ dependencies:
   hooks: ^1.0.0
   native_toolchain_c: ^0.17.4
   logging: ^1.3.0
-  # dart_libusb: ^1.0.1
   hidapi: ^0.1.5
   ffi: ^2.1.4
 

@@ -31,13 +31,16 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
 | `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
 
-### Data Models & Constants
+### Data Class: `ViturePoseData`
 
-#### `ViturePoseData`
-Holds orientation and timestamp attributes:
-* `roll`, `pitch`, `yaw`: `double` (Euler angles)
-* `quatW`, `quatX`, `quatY`, `quatZ`: `double` (Quaternion orientation)
-* `timestamp`: `int`
+| Field | Type | Description |
+|---|---|---|
+| `roll`, `pitch`, `yaw` | `double` | Device orientation in Euler angles. |
+| `quatW`, `quatX`, `quatY`, `quatZ` | `double` | Device orientation as a quaternion. |
+| `magX`, `magY`, `magZ` | `double?` | Magnetometer axes, populated only on magnetometer-capable devices (Luma / Luma Pro / Beast / Pro 2). `null` on devices without a magnetometer. |
+| `temperature` | `double?` | Sensor temperature reading, populated alongside the magnetometer fields. `null` when unavailable. |
+| `hasMagnetometer` | `bool` | Convenience getter indicating whether `magX`/`magY`/`magZ` are present. |
+| `timestamp` | `int` | Timestamp associated with the pose sample. |
 
 ---
 

@@ -4,7 +4,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:viture_kit/viture_kit.dart';
-import 'package:viture_kit_example/flutter_scene_example.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +34,6 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
 
   double _brightness = 0;
   double _volume = 0;
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -60,11 +58,9 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
       setState(() {
         _brightness = levels.brightness.toDouble();
         _volume = levels.volume.toDouble();
-        _isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
       _showErrorSnackBar('Failed to connect to device: $e');
     }
   }
@@ -209,21 +205,21 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
             ElevatedButton(
               onPressed: () async {
                 final res = VitureKit.fetchHidapiVitureProductIds();
-                print(res);
+                debugPrint(res.toString());
               },
               child: const Text("hidapi"),
             ),
             ElevatedButton(
               onPressed: () async {
                 final res = _vitureKit.getBrightnessLevel();
-                print(res);
+                debugPrint(res.toString());
               },
               child: const Text("Get Brightness"),
             ),
             ElevatedButton(
               onPressed: () async {
                 final res = _vitureKit.getVolumeLevel();
-                print(res);
+                debugPrint(res.toString());
               },
               child: const Text("Get Volume"),
             ),

@@ -1,5 +1,3 @@
-// ignore_for_file: depend_on_referenced_packages
-
 import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
@@ -22,6 +20,11 @@ class ViturePoseData {
   final double quatY;
   final double quatZ;
 
+  final double? magX;
+  final double? magY;
+  final double? magZ;
+  final double? temperature;
+
   final int timestamp;
 
   const ViturePoseData({
@@ -32,14 +35,22 @@ class ViturePoseData {
     required this.quatX,
     required this.quatY,
     required this.quatZ,
+    this.magX,
+    this.magY,
+    this.magZ,
+    this.temperature,
     required this.timestamp,
   });
+
+  bool get hasMagnetometer => magX != null && magY != null && magZ != null;
 
   @override
   String toString() {
     return 'ViturePoseData('
         'PRY: [$pitch, $roll, $yaw], '
         'Quat: [$quatW, $quatX, $quatY, $quatZ], '
+        '${hasMagnetometer ? 'Mag: [$magX, $magY, $magZ], ' : ''}'
+        '${temperature != null ? 'Temp: $temperature, ' : ''}'
         'ts: $timestamp'
         ')';
   }
@@ -103,11 +114,6 @@ class VitureKit {
       'Platform not supported: ${Platform.operatingSystem}',
     );
   }
-
-  // static int? fetchVitureProductIdWithLibusb() {
-  //   final productIds = LibusbHelper.fetchLibUsbVitureProductIds();
-  //   return productIds.isEmpty ? null : productIds.first;
-  // }
 
   static int? fetchHidapiVitureProductIds() {
     final productIds = HIDAPIHelper.fetchHidapiVitureProductIds();
@@ -204,12 +210,14 @@ class VitureKit {
           return;
         }
 
-        if (message is List && message.length == 8) {
+        if (message is List && (message.length == 8 || message.length == 12)) {
           final controller = _poseController;
 
           if (controller == null || controller.isClosed) {
             return;
           }
+
+          final hasExtras = message.length == 12;
 
           try {
             controller.add(
@@ -221,7 +229,11 @@ class VitureKit {
                 quatX: (message[4] as num).toDouble(),
                 quatY: (message[5] as num).toDouble(),
                 quatZ: (message[6] as num).toDouble(),
-                timestamp: message[7] as int,
+                magX: hasExtras ? (message[7] as num).toDouble() : null,
+                magY: hasExtras ? (message[8] as num).toDouble() : null,
+                magZ: hasExtras ? (message[9] as num).toDouble() : null,
+                temperature: hasExtras ? (message[10] as num).toDouble() : null,
+                timestamp: hasExtras ? message[11] as int : message[7] as int,
               ),
             );
           } catch (_) {}
@@ -372,6 +384,10 @@ class VitureKit {
     print('[VitureKit] $message');
   }
 
+  static bool _deviceSupportsMagnetometer(int deviceType) {
+    return deviceType != vitureDeviceTypeCarina;
+  }
+
   static void _backgroundSensorWorker(_IsolateInitConfig config) {
     final commandPort = ReceivePort();
     config.sendPort.send(commandPort.sendPort);
@@ -447,13 +463,15 @@ class VitureKit {
       deviceType = api.xr_device_provider_get_device_type(provider!);
 
       if (deviceType != vitureDeviceTypeCarina) {
+        final hasMagnetometer = _deviceSupportsMagnetometer(deviceType);
+
         poseCallable =
             ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>.listener(
               (ffi.Pointer<ffi.Float> dataPtr, int timestamp) {
                 if (dataPtr == ffi.nullptr || cleanedUp) return;
 
                 try {
-                  config.sendPort.send(<Object>[
+                  final payload = <Object>[
                     dataPtr[0],
                     dataPtr[1],
                     dataPtr[2],
@@ -461,8 +479,20 @@ class VitureKit {
                     dataPtr[4],
                     dataPtr[5],
                     dataPtr[6],
-                    timestamp,
-                  ]);
+                  ];
+
+                  if (hasMagnetometer) {
+                    payload.addAll(<Object>[
+                      dataPtr[7],
+                      dataPtr[8],
+                      dataPtr[9],
+                      dataPtr[10],
+                    ]);
+                  }
+
+                  payload.add(timestamp);
+
+                  config.sendPort.send(payload);
                 } catch (_) {}
               },
             );
@@ -474,8 +504,8 @@ class VitureKit {
 
         api.xr_device_provider_open_imu(
           provider!,
-          VitureImuMode.pose,
-          VitureImuFrequency.freq60Hz,
+          VitureImuMode.raw,
+          VitureImuFrequency.freq120Hz,
         );
       } else {
         final posePtr = calloc<ffi.Float>(7);
