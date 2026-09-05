@@ -141,6 +141,15 @@ class VitureKit {
     if (Platform.isMacOS) {
       return 'glasses.framework/glasses';
     }
+
+    if (Platform.isWindows) {
+      return 'glasses';
+    }
+
+    if (Platform.isAndroid) {
+      return 'libglasses';
+    }
+
     throw UnsupportedError(
       'Platform not supported: ${Platform.operatingSystem}',
     );

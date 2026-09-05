@@ -1,3 +1,7 @@
+## 0.1.1
+- Windows support
+- Android support
+
 ## 0.1.0
 - fix: PAC failure during HID manager teardown
 - breaking: `poseStream` is now `sensorStream`
