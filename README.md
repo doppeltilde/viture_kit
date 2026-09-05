@@ -9,9 +9,10 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | Platform | Support |
 | -------- | ------- |
 | macOS    | ✅ Supported |
+| iOS    | ❌ Unsupported |
 | Linux    | ❌ Unsupported |
-| Android  | ❌ Unsupported |
-| Windows  | ❌ Unsupported |
+| Android  | ✅ Supported |
+| Windows  | ✅ Supported |
 
 ## API Reference
 
