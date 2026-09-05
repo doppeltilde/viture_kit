@@ -2,7 +2,7 @@
 
 Native Dart bindings for the [VITURE XR Glasses SDK](https://www.viture.com/).
 
-<img src="./sdk-show.png"/>
+![showcase](https://www.viture.com/images/developer/sdk-show.png)
 
 ## API Reference
 
