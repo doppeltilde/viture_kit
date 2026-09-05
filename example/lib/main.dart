@@ -227,15 +227,15 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
               },
               child: const Text("Get Volume"),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CubeView()),
-                );
-              },
-              child: const Text("Cube Scene"),
-            ),
+            // ElevatedButton(
+            //   onPressed: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(builder: (context) => const CubeView()),
+            //     );
+            //   },
+            //   child: const Text("Cube Scene"),
+            // ),
             Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

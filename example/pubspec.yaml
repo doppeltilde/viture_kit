@@ -15,7 +15,6 @@ dependencies:
     path: ../
 
   cupertino_icons: ^1.0.9
-  flutter_scene: ^0.23.0
 
 dev_dependencies:
   flutter_test:
