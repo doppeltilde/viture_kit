@@ -160,13 +160,13 @@ class VitureKit {
     return productIds.isEmpty ? null : productIds.first;
   }
 
-  static T _withNativeProvider<T>(
+  static T? _withNativeProvider<T>(
     T Function(bindings.VitureKitBindings api, ffi.Pointer<ffi.Void> provider)
     action,
   ) {
     final productId = fetchHidapiVitureProductIds();
     if (productId == null) {
-      throw StateError('No VITURE device found.');
+      return null;
     }
 
     final dylib = ffi.DynamicLibrary.open(_resolveDylibPath());
@@ -174,7 +174,7 @@ class VitureKit {
     final provider = api.xr_device_provider_create(productId);
 
     if (provider == ffi.nullptr) {
-      throw StateError('Failed to create device provider.');
+      return null;
     }
 
     try {
@@ -190,7 +190,7 @@ class VitureKit {
     }
   }
 
-  int getBrightnessLevel() {
+  int? getBrightnessLevel() {
     return _withNativeProvider((api, provider) {
       return api.xr_device_provider_get_brightness_level(provider);
     });
@@ -202,7 +202,7 @@ class VitureKit {
     });
   }
 
-  int getVolumeLevel() {
+  int? getVolumeLevel() {
     return _withNativeProvider((api, provider) {
       return api.xr_device_provider_get_volume_level(provider);
     });
@@ -214,17 +214,25 @@ class VitureKit {
     });
   }
 
-  Future<void> startHeadTracking({
+  Future<Map<String, dynamic>> startHeadTracking({
     int imuFrequency = VitureImuFrequency.freq120Hz,
   }) async {
     const imuMode = VitureImuMode.pose;
     final productId = fetchHidapiVitureProductIds();
     if (productId == null) {
-      return;
+      return {
+        "status": false,
+        "message": "Unable to find the glasses.",
+        "code": -7,
+      };
     }
 
     if (_isHeadTrackingActive || _isStarting) {
-      return;
+      return {
+        "status": true,
+        "message": "Sucessfully started head tracking.",
+        "code": 0,
+      };
     }
     if (_isReleasing) {
       throw StateError(
@@ -243,7 +251,11 @@ class VitureKit {
 
       _provider = _api!.xr_device_provider_create(productId);
       if (_provider == ffi.nullptr) {
-        throw StateError('Failed to create device provider');
+        return {
+          "status": false,
+          "message": "Unable to connect to the glasses.",
+          "code": -7,
+        };
       }
 
       _api!.xr_device_provider_initialize(_provider!, ffi.nullptr, ffi.nullptr);
@@ -318,7 +330,19 @@ class VitureKit {
           );
         }
 
-        _api!.xr_device_provider_open_imu(_provider!, imuMode, imuFrequency);
+        final result = _api!.xr_device_provider_open_imu(
+          _provider!,
+          imuMode,
+          imuFrequency,
+        );
+        if (result < 0) {
+          await _forceCleanup();
+          return {
+            "status": false,
+            "message": "Unable to connect to the glasses.",
+            "code": -7,
+          };
+        }
       } else {
         _posePtr = calloc<ffi.Float>(7);
         _statusPtr = calloc<ffi.Int>();
@@ -363,9 +387,18 @@ class VitureKit {
       }
 
       _isHeadTrackingActive = true;
+      return {
+        "status": true,
+        "message": "Successfully connect to the glasses.",
+        "code": 0,
+      };
     } catch (e) {
       await _forceCleanup();
-      rethrow;
+      return {
+        "status": false,
+        "message": "Unable to connect to the glasses.",
+        "code": -7,
+      };
     } finally {
       _isStarting = false;
     }

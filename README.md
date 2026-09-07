@@ -27,7 +27,7 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `setBrightnessLevel(int level)` | `void` | Sets the brightness level for the connected device. |
 | `getVolumeLevel()` | `int` | Reads the current volume level from the connected device. |
 | `setVolumeLevel(int level)` | `void` | Sets the volume level for the connected device. |
-| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<void>` | Initializes native bindings and starts receiving IMU data. |
+| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<Map<String, dynamic>>` | Initializes native bindings and starts receiving IMU data. Returns a map with status, message, and code (-7 if glasses not found, 0 if successful). |
 | `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
 | `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
@@ -64,7 +64,12 @@ Future<void> main() async {
 
   // 2. Claim ownership of the IMU
   try {
-    await viture.takeHeadTracking();
+    await viture.startHeadTracking();
+    if (success["code"] == -7) {
+      print('Failed: Device not ready or USB error. Please also make sure no other app using the glasses is open.');
+      return;
+    }
+
     print('Head tracking started successfully.');
   } catch (e) {
     print('Failed to start head tracking: $e');

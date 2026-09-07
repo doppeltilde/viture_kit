@@ -81,6 +81,10 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
         final brightness = _vitureKit.getBrightnessLevel();
         final volume = _vitureKit.getVolumeLevel();
         if (!mounted) return;
+        if ((brightness == null || brightness == -7) ||
+            (volume == null || volume == -7)) {
+          return;
+        }
         setState(() {
           _brightness = brightness.toDouble();
           _volume = volume.toDouble();
@@ -136,7 +140,20 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                 );
               },
             );
-            await _vitureKit.startHeadTracking();
+            final success = await _vitureKit.startHeadTracking();
+            if (success["code"] == -7) {
+              await _poseSubscription?.cancel();
+              _poseSubscription = null;
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Failed: Device not ready or USB error. Please also make sure no other app using the glasses is open.',
+                    ),
+                  ),
+                );
+              }
+            }
           } else {
             await _poseSubscription?.cancel();
             _poseSubscription = null;
@@ -228,11 +245,17 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                       ? null
                       : () async {
                           await _runWithLoading(() async {
-                            final res = _vitureKit.getBrightnessLevel();
-                            debugPrint(res.toString());
+                            final brightness = _vitureKit.getBrightnessLevel();
+                            debugPrint(brightness.toString());
                             if (mounted) {
+                              if (brightness == null || brightness == -7) {
+                                _showErrorSnackBar(
+                                  "Unable to read brightness. $brightness",
+                                );
+                                return;
+                              }
                               setState(() {
-                                _brightness = res.toDouble();
+                                _brightness = brightness.toDouble();
                               });
                             }
                           }, message: 'Reading brightness…');
@@ -244,11 +267,17 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                       ? null
                       : () async {
                           await _runWithLoading(() async {
-                            final res = _vitureKit.getVolumeLevel();
-                            debugPrint(res.toString());
+                            final volume = _vitureKit.getVolumeLevel();
+                            debugPrint(volume.toString());
                             if (mounted) {
+                              if (volume == null || volume == -7) {
+                                _showErrorSnackBar(
+                                  "Unable to read volume. $volume",
+                                );
+                                return;
+                              }
                               setState(() {
-                                _volume = res.toDouble();
+                                _volume = volume.toDouble();
                               });
                             }
                           }, message: 'Reading volume…');
