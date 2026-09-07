@@ -64,7 +64,7 @@ Future<void> main() async {
 
   // 2. Claim ownership of the IMU
   try {
-    await viture.startHeadTracking();
+    final success = await viture.startHeadTracking();
     if (success["code"] == -7) {
       print('Failed: Device not ready or USB error. Please also make sure no other app using the glasses is open.');
       return;
