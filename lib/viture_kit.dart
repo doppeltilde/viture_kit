@@ -223,7 +223,7 @@ class VitureKit {
       return {
         "status": false,
         "message": "Unable to find the glasses.",
-        "code": -7,
+        "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
       };
     }
 
@@ -231,7 +231,7 @@ class VitureKit {
       return {
         "status": true,
         "message": "Sucessfully started head tracking.",
-        "code": 0,
+        "code": bindings.VITURE_GLASSES_SUCCESS,
       };
     }
     if (_isReleasing) {
@@ -254,7 +254,7 @@ class VitureKit {
         return {
           "status": false,
           "message": "Unable to connect to the glasses.",
-          "code": -7,
+          "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
         };
       }
 
@@ -340,7 +340,7 @@ class VitureKit {
           return {
             "status": false,
             "message": "Unable to connect to the glasses.",
-            "code": -7,
+            "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
           };
         }
       } else {
@@ -390,14 +390,14 @@ class VitureKit {
       return {
         "status": true,
         "message": "Successfully connect to the glasses.",
-        "code": 0,
+        "code": bindings.VITURE_GLASSES_SUCCESS,
       };
     } catch (e) {
       await _forceCleanup();
       return {
         "status": false,
         "message": "Unable to connect to the glasses.",
-        "code": -7,
+        "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
       };
     } finally {
       _isStarting = false;
