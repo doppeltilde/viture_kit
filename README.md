@@ -24,11 +24,11 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `isHeadTrackingActive` | `bool` | Indicates whether IMU data is currently streaming. |
 | `sensorStream` | `Stream<VitureSensorData>` | Broadcast stream delivering raw and parsed orientation updates. |
 | `stateStream` | `Stream<VitureStateEvent>` | Broadcast stream delivering hardware changes. |
-| `getBrightnessLevel()` | `int` | Reads the current brightness level from the connected device. |
-| `setBrightnessLevel(int level)` | `void` | Sets the brightness level for the connected device. |
-| `getVolumeLevel()` | `int` | Reads the current volume level from the connected device. |
-| `setVolumeLevel(int level)` | `void` | Sets the volume level for the connected device. |
-| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<HeadTrackingResponse>` | Initializes native bindings and starts receiving IMU data. Returns status, message, and code (-7 if glasses not found, 0 if successful). |
+| `getBrightnessLevel({bool setDarwinOpenExclusive = false})` | `int` | Reads the current brightness level from the connected device. |
+| `setBrightnessLevel(int level, {bool setDarwinOpenExclusive = false})` | `void` | Sets the brightness level for the connected device. |
+| `getVolumeLevel({bool setDarwinOpenExclusive = false})` | `int` | Reads the current volume level from the connected device. |
+| `setVolumeLevel(int level, , {bool setDarwinOpenExclusive = false})` | `void` | Sets the volume level for the connected device. |
+| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz, bool setDarwinOpenExclusive = false})` | `Future<HeadTrackingResponse>` | Initializes native bindings and starts receiving IMU data. Returns status, message, and code (-7 if glasses not found, 0 if successful). |
 | `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
 | `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
@@ -108,7 +108,7 @@ Future<void> main() async {
 
 ## Caveat
 > [!IMPORTANT]  
-> When the Spacewalker App is open `VitureKit` will assume control of the IMU for head tracking, stopping tracking on the Spacewalker app.
+> When the Spacewalker App is open `viture_kit` will claim ownership of the IMU for head tracking, stopping head tracking on the Spacewalker app.
 
 ---
 _Notice:_ _This project was initally created to be used in-house, as such the

@@ -1,3 +1,6 @@
+## 0.1.5
+- New: `setDarwinOpenExclusive` argument.
+
 ## 0.1.4
 - New: `stateStream`.
 

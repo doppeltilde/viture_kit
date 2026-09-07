@@ -11,9 +11,9 @@ import 'package:viture_kit/models/viture_state_event_model.dart';
 
 import 'viture_kit_bindings_generated.dart' as bindings;
 
+export 'package:viture_kit/core/viture_constants.dart';
 export 'package:viture_kit/models/viture_head_tracking_response_model.dart';
 export 'package:viture_kit/models/viture_sensor_data_model.dart';
-export 'package:viture_kit/core/viture_constants.dart';
 export 'package:viture_kit/models/viture_state_event_model.dart';
 
 class VitureKit {
@@ -93,16 +93,23 @@ class VitureKit {
     );
   }
 
-  static int? fetchHidapiVitureProductIds() {
-    final productIds = HIDAPIHelper.fetchHidapiVitureProductIds();
+  static int? fetchHidapiVitureProductIds({
+    bool setDarwinOpenExclusive = false,
+  }) {
+    final productIds = HIDAPIHelper.fetchHidapiVitureProductIds(
+      setDarwinOpenExclusive: setDarwinOpenExclusive,
+    );
     return productIds.isEmpty ? null : productIds.first;
   }
 
   static T? _withNativeProvider<T>(
     T Function(bindings.VitureKitBindings api, ffi.Pointer<ffi.Void> provider)
-    action,
-  ) {
-    final productId = fetchHidapiVitureProductIds();
+    action, {
+    bool setDarwinOpenExclusive = false,
+  }) {
+    final productId = fetchHidapiVitureProductIds(
+      setDarwinOpenExclusive: setDarwinOpenExclusive,
+    );
     if (productId == null) {
       return null;
     }
@@ -128,35 +135,38 @@ class VitureKit {
     }
   }
 
-  int? getBrightnessLevel() {
+  int? getBrightnessLevel({bool setDarwinOpenExclusive = false}) {
     return _withNativeProvider((api, provider) {
       return api.xr_device_provider_get_brightness_level(provider);
-    });
+    }, setDarwinOpenExclusive: setDarwinOpenExclusive);
   }
 
-  void setBrightnessLevel(int level) {
+  void setBrightnessLevel(int level, {bool setDarwinOpenExclusive = false}) {
     _withNativeProvider((api, provider) {
       api.xr_device_provider_set_brightness_level(provider, level);
-    });
+    }, setDarwinOpenExclusive: setDarwinOpenExclusive);
   }
 
-  int? getVolumeLevel() {
+  int? getVolumeLevel({bool setDarwinOpenExclusive = false}) {
     return _withNativeProvider((api, provider) {
       return api.xr_device_provider_get_volume_level(provider);
-    });
+    }, setDarwinOpenExclusive: setDarwinOpenExclusive);
   }
 
-  void setVolumeLevel(int level) {
+  void setVolumeLevel(int level, {bool setDarwinOpenExclusive = false}) {
     _withNativeProvider((api, provider) {
       api.xr_device_provider_set_volume_level(provider, level);
-    });
+    }, setDarwinOpenExclusive: setDarwinOpenExclusive);
   }
 
   Future<HeadTrackingResponse> startHeadTracking({
     VitureImuFrequency imuFrequency = VitureImuFrequency.freq120Hz,
+    bool setDarwinOpenExclusive = false,
   }) async {
     const imuMode = VitureImuMode.pose;
-    final productId = fetchHidapiVitureProductIds();
+    final productId = fetchHidapiVitureProductIds(
+      setDarwinOpenExclusive: setDarwinOpenExclusive,
+    );
     if (productId == null) {
       return HeadTrackingResponse(
         status: false,
@@ -438,9 +448,12 @@ class VitureKit {
     _deviceType = -1;
   }
 
-  Future<void> setHeadTrackingEnabled(bool enabled) async {
+  Future<void> setHeadTrackingEnabled(
+    bool enabled, {
+    bool setDarwinOpenExclusive = false,
+  }) async {
     if (enabled) {
-      await startHeadTracking();
+      await startHeadTracking(setDarwinOpenExclusive: setDarwinOpenExclusive);
     } else {
       await releaseHeadTracking();
     }
