@@ -316,6 +316,24 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                     ),
                   ],
                 ),
+
+                StreamBuilder<VitureStateEvent>(
+                  stream: _vitureKit.stateStream,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      if (!snapshot.hasData) {
+                        return const Text(
+                          'Waiting for hardware state events...',
+                        );
+                      }
+                    }
+
+                    final event = snapshot.data!;
+                    final stateId = VitureStateId.fromId(event.stateId);
+
+                    return Text('State: $stateId, Value: ${event.value}');
+                  },
+                ),
                 Card(
                   elevation: 2,
                   child: SwitchListTile.adaptive(

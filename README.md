@@ -23,6 +23,7 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `sdkVersion` | `String` | Returns the native SDK version string. |
 | `isHeadTrackingActive` | `bool` | Indicates whether IMU data is currently streaming. |
 | `sensorStream` | `Stream<VitureSensorData>` | Broadcast stream delivering raw and parsed orientation updates. |
+| `stateStream` | `Stream<VitureStateEvent>` | Broadcast stream delivering hardware changes. |
 | `getBrightnessLevel()` | `int` | Reads the current brightness level from the connected device. |
 | `setBrightnessLevel(int level)` | `void` | Sets the brightness level for the connected device. |
 | `getVolumeLevel()` | `int` | Reads the current volume level from the connected device. |
@@ -49,8 +50,14 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 |---|---|---|
 | `status` | `bool` | Indicates success or failure |
 | `message` | `String` | Status or error description |
-| `code` | `int` | Error code or status identifier |
+| `code` | `int` | Error code |
 
+### Model Class: `VitureStateEvent`
+
+| Field | Type | Description |
+|---|---|---|
+| `stateId` | `int` | Identifies which hardware setting changed. |
+| `value` | `String` | The new numeric level or status. |
 
 ---
 
@@ -83,6 +90,11 @@ Future<void> main() async {
   } catch (e) {
     print('Failed to start head tracking: $e');
   }
+
+  final subscription = viture.stateStream.listen((VitureStateEvent event) {
+    final stateId = VitureStateId.fromId(event.stateId);
+    print('State: $stateId, Value: ${event.value}');
+  });
 
   // 3. Stop tracking and clean up
   await subscription.cancel();

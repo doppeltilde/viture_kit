@@ -1,3 +1,6 @@
+## 0.1.4
+- New: `stateStream`.
+
 ## 0.1.3
 - `startHeadTracking` now returns `HeadTrackingResponse`.
 

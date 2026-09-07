@@ -3,130 +3,18 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:viture_kit/core/viture_constants.dart';
 import 'package:viture_kit/helper/hiadpi_helper.dart';
+import 'package:viture_kit/models/viture_head_tracking_response_model.dart';
+import 'package:viture_kit/models/viture_sensor_data_model.dart';
+import 'package:viture_kit/models/viture_state_event_model.dart';
 
 import 'viture_kit_bindings_generated.dart' as bindings;
 
-const int vitureDeviceTypeCarina = 2;
-
-class HeadTrackingResponse {
-  final bool status;
-  final String message;
-  final int code;
-
-  HeadTrackingResponse({
-    required this.status,
-    required this.message,
-    required this.code,
-  });
-
-  factory HeadTrackingResponse.fromJson(Map<String, dynamic> json) {
-    return HeadTrackingResponse(
-      status: json['status'],
-      message: json['message'],
-      code: json['code'],
-    );
-  }
-}
-
-class VitureSensorData {
-  final double roll;
-  final double pitch;
-  final double yaw;
-  final double quatW;
-  final double quatX;
-  final double quatY;
-  final double quatZ;
-
-  final double gyroX;
-  final double gyroY;
-  final double gyroZ;
-  final double accelX;
-  final double accelY;
-  final double accelZ;
-  final double magX;
-  final double magY;
-  final double magZ;
-  final double temperature;
-
-  final int timestamp;
-  final int vsync;
-
-  final bool isRaw;
-
-  const VitureSensorData.pose({
-    required this.roll,
-    required this.pitch,
-    required this.yaw,
-    required this.quatW,
-    required this.quatX,
-    required this.quatY,
-    required this.quatZ,
-    required this.timestamp,
-  }) : gyroX = 0.0,
-       gyroY = 0.0,
-       gyroZ = 0.0,
-       accelX = 0.0,
-       accelY = 0.0,
-       accelZ = 0.0,
-       magX = 0.0,
-       magY = 0.0,
-       magZ = 0.0,
-       temperature = 0.0,
-       vsync = 0,
-       isRaw = false;
-
-  const VitureSensorData.raw({
-    required this.gyroX,
-    required this.gyroY,
-    required this.gyroZ,
-    required this.accelX,
-    required this.accelY,
-    required this.accelZ,
-    required this.magX,
-    required this.magY,
-    required this.magZ,
-    required this.temperature,
-    required this.timestamp,
-    required this.vsync,
-  }) : roll = 0.0,
-       pitch = 0.0,
-       yaw = 0.0,
-       quatW = 0.0,
-       quatX = 0.0,
-       quatY = 0.0,
-       quatZ = 0.0,
-       isRaw = true;
-
-  @override
-  String toString() {
-    if (isRaw) {
-      return 'VitureSensorData.raw('
-          'Gyro: [$gyroX, $gyroY, $gyroZ], '
-          'Accel: [$accelX, $accelY, $accelZ], '
-          'Mag: [$magX, $magY, $magZ], '
-          'Temp: $temperature, '
-          'ts: $timestamp, vsync: $vsync'
-          ')';
-    }
-    return 'VitureSensorData.pose('
-        'PRY: [$pitch, $roll, $yaw], '
-        'Quat: [$quatW, $quatX, $quatY, $quatZ], '
-        'ts: $timestamp'
-        ')';
-  }
-}
-
-abstract class VitureImuMode {
-  static const int raw = 0;
-  static const int pose = 1;
-}
-
-abstract class VitureImuFrequency {
-  static const int freq60Hz = 1;
-  static const int freq120Hz = 2;
-  static const int freq240Hz = 3;
-}
+export 'package:viture_kit/models/viture_head_tracking_response_model.dart';
+export 'package:viture_kit/models/viture_sensor_data_model.dart';
+export 'package:viture_kit/core/viture_constants.dart';
+export 'package:viture_kit/models/viture_state_event_model.dart';
 
 class VitureKit {
   static String get sdkVersion => bindings.VITURE_VERSION_STRING;
@@ -135,17 +23,21 @@ class VitureKit {
   static int get sdkVersionPatch => bindings.VITURE_VERSION_PATCH;
 
   StreamController<VitureSensorData>? _sensorController;
+  StreamController<VitureStateEvent>? _stateController;
 
   bindings.VitureKitBindings? _api;
   ffi.Pointer<ffi.Void>? _provider;
+
+  ffi.NativeCallable<bindings.GlassStateCallbackFunction>? _stateCallable;
   ffi.NativeCallable<bindings.VitureImuPoseCallbackFunction>? _poseCallable;
   ffi.NativeCallable<bindings.VitureImuRawCallbackFunction>? _rawCallable;
+
   Timer? _carinaTimer;
   ffi.Pointer<ffi.Float>? _posePtr;
   ffi.Pointer<ffi.Int>? _statusPtr;
 
   int _deviceType = -1;
-  int _imuMode = VitureImuMode.pose;
+  VitureImuMode _imuMode = VitureImuMode.pose;
   bool _isHeadTrackingActive = false;
   bool _isStarting = false;
   bool _isReleasing = false;
@@ -155,6 +47,32 @@ class VitureKit {
   Stream<VitureSensorData> get sensorStream {
     _sensorController ??= StreamController<VitureSensorData>.broadcast();
     return _sensorController!.stream;
+  }
+
+  Stream<VitureStateEvent> get stateStream {
+    _stateController ??= StreamController<VitureStateEvent>.broadcast();
+    return _stateController!.stream;
+  }
+
+  void _registerStateCallback() {
+    if (_api == null || _provider == null || _provider == ffi.nullptr) return;
+
+    _stateController ??= StreamController<VitureStateEvent>.broadcast();
+
+    _stateCallable =
+        ffi.NativeCallable<bindings.GlassStateCallbackFunction>.listener((
+          int stateId,
+          int value,
+        ) {
+          final controller = _stateController;
+          if (controller == null || controller.isClosed) return;
+          controller.add(VitureStateEvent(stateId, value));
+        });
+
+    _api!.xr_device_provider_register_state_callback(
+      _provider!,
+      _stateCallable!.nativeFunction,
+    );
   }
 
   static String _resolveDylibPath() {
@@ -235,7 +153,7 @@ class VitureKit {
   }
 
   Future<HeadTrackingResponse> startHeadTracking({
-    int imuFrequency = VitureImuFrequency.freq120Hz,
+    VitureImuFrequency imuFrequency = VitureImuFrequency.freq120Hz,
   }) async {
     const imuMode = VitureImuMode.pose;
     final productId = fetchHidapiVitureProductIds();
@@ -250,7 +168,7 @@ class VitureKit {
     if (_isHeadTrackingActive || _isStarting) {
       return HeadTrackingResponse(
         status: true,
-        message: "Sucessfully started head tracking.",
+        message: "Successfully started head tracking.",
         code: bindings.VITURE_GLASSES_SUCCESS,
       );
     }
@@ -281,11 +199,13 @@ class VitureKit {
       _api!.xr_device_provider_initialize(_provider!, ffi.nullptr, ffi.nullptr);
       _api!.xr_device_provider_start(_provider!);
 
+      _registerStateCallback();
+
       await Future<void>.delayed(const Duration(milliseconds: 450));
 
       _deviceType = _api!.xr_device_provider_get_device_type(_provider!);
 
-      if (_deviceType != vitureDeviceTypeCarina) {
+      if (_deviceType != VitureDeviceType.carina) {
         if (imuMode == VitureImuMode.raw) {
           _rawCallable =
               ffi.NativeCallable<
@@ -352,8 +272,8 @@ class VitureKit {
 
         final result = _api!.xr_device_provider_open_imu(
           _provider!,
-          imuMode,
-          imuFrequency,
+          imuMode.value,
+          imuFrequency.value,
         );
         if (result < 0) {
           await _forceCleanup();
@@ -409,7 +329,7 @@ class VitureKit {
       _isHeadTrackingActive = true;
       return HeadTrackingResponse(
         status: true,
-        message: "Sucessfully started head tracking.",
+        message: "Successfully started head tracking.",
         code: bindings.VITURE_GLASSES_SUCCESS,
       );
     } catch (e) {
@@ -460,7 +380,16 @@ class VitureKit {
 
     if (api != null && provider != null && provider != ffi.nullptr) {
       try {
-        if (_deviceType != vitureDeviceTypeCarina) {
+        api.xr_device_provider_register_state_callback(provider, ffi.nullptr);
+      } catch (_) {}
+
+      try {
+        _stateCallable?.close();
+      } catch (_) {}
+      _stateCallable = null;
+
+      try {
+        if (_deviceType != VitureDeviceType.carina) {
           if (_imuMode == VitureImuMode.raw) {
             api.xr_device_provider_register_imu_raw_callback(
               provider,
@@ -485,9 +414,9 @@ class VitureKit {
       } catch (_) {}
       _rawCallable = null;
 
-      if (_deviceType != vitureDeviceTypeCarina) {
+      if (_deviceType != VitureDeviceType.carina) {
         try {
-          api.xr_device_provider_close_imu(provider, _imuMode);
+          api.xr_device_provider_close_imu(provider, _imuMode.value);
         } catch (_) {}
       }
 
@@ -523,5 +452,7 @@ class VitureKit {
     } catch (_) {}
     await _sensorController?.close();
     _sensorController = null;
+    await _stateController?.close();
+    _stateController = null;
   }
 }
