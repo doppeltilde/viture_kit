@@ -9,6 +9,26 @@ import 'viture_kit_bindings_generated.dart' as bindings;
 
 const int vitureDeviceTypeCarina = 2;
 
+class HeadTrackingResponse {
+  final bool status;
+  final String message;
+  final int code;
+
+  HeadTrackingResponse({
+    required this.status,
+    required this.message,
+    required this.code,
+  });
+
+  factory HeadTrackingResponse.fromJson(Map<String, dynamic> json) {
+    return HeadTrackingResponse(
+      status: json['status'],
+      message: json['message'],
+      code: json['code'],
+    );
+  }
+}
+
 class VitureSensorData {
   final double roll;
   final double pitch;
@@ -214,25 +234,25 @@ class VitureKit {
     });
   }
 
-  Future<Map<String, dynamic>> startHeadTracking({
+  Future<HeadTrackingResponse> startHeadTracking({
     int imuFrequency = VitureImuFrequency.freq120Hz,
   }) async {
     const imuMode = VitureImuMode.pose;
     final productId = fetchHidapiVitureProductIds();
     if (productId == null) {
-      return {
-        "status": false,
-        "message": "Unable to find the glasses.",
-        "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
-      };
+      return HeadTrackingResponse(
+        status: false,
+        message: "Unable to find the glasses.",
+        code: bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
+      );
     }
 
     if (_isHeadTrackingActive || _isStarting) {
-      return {
-        "status": true,
-        "message": "Sucessfully started head tracking.",
-        "code": bindings.VITURE_GLASSES_SUCCESS,
-      };
+      return HeadTrackingResponse(
+        status: true,
+        message: "Sucessfully started head tracking.",
+        code: bindings.VITURE_GLASSES_SUCCESS,
+      );
     }
     if (_isReleasing) {
       throw StateError(
@@ -251,11 +271,11 @@ class VitureKit {
 
       _provider = _api!.xr_device_provider_create(productId);
       if (_provider == ffi.nullptr) {
-        return {
-          "status": false,
-          "message": "Unable to connect to the glasses.",
-          "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
-        };
+        return HeadTrackingResponse(
+          status: false,
+          message: "Unable to find the glasses.",
+          code: bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
+        );
       }
 
       _api!.xr_device_provider_initialize(_provider!, ffi.nullptr, ffi.nullptr);
@@ -337,11 +357,11 @@ class VitureKit {
         );
         if (result < 0) {
           await _forceCleanup();
-          return {
-            "status": false,
-            "message": "Unable to connect to the glasses.",
-            "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
-          };
+          return HeadTrackingResponse(
+            status: false,
+            message: "Unable to find the glasses.",
+            code: bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
+          );
         }
       } else {
         _posePtr = calloc<ffi.Float>(7);
@@ -387,18 +407,18 @@ class VitureKit {
       }
 
       _isHeadTrackingActive = true;
-      return {
-        "status": true,
-        "message": "Successfully connect to the glasses.",
-        "code": bindings.VITURE_GLASSES_SUCCESS,
-      };
+      return HeadTrackingResponse(
+        status: true,
+        message: "Sucessfully started head tracking.",
+        code: bindings.VITURE_GLASSES_SUCCESS,
+      );
     } catch (e) {
       await _forceCleanup();
-      return {
-        "status": false,
-        "message": "Unable to connect to the glasses.",
-        "code": bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
-      };
+      return HeadTrackingResponse(
+        status: false,
+        message: "Unable to find the glasses.",
+        code: bindings.VITURE_GLASSES_ERROR_DEVICE_REJECTED,
+      );
     } finally {
       _isStarting = false;
     }

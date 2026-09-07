@@ -140,8 +140,9 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                 );
               },
             );
-            final success = await _vitureKit.startHeadTracking();
-            if (success["code"] == -7) {
+            final HeadTrackingResponse success = await _vitureKit
+                .startHeadTracking();
+            if (success.code == -7) {
               await _poseSubscription?.cancel();
               _poseSubscription = null;
               if (mounted) {

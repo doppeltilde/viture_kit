@@ -1,6 +1,8 @@
+## 0.1.3
+- `starthHeadTracking` now returns `HeadTrackingResponse`.
+
 ## 0.1.2
 - `getBrightnessLevel` and `getVolumeLevel` now return `null`.
-- `startHeadTracking` now returns `Map<String, dynamic>`.
 
 ## 0.1.1
 - Windows support

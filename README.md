@@ -27,12 +27,12 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `setBrightnessLevel(int level)` | `void` | Sets the brightness level for the connected device. |
 | `getVolumeLevel()` | `int` | Reads the current volume level from the connected device. |
 | `setVolumeLevel(int level)` | `void` | Sets the volume level for the connected device. |
-| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<Map<String, dynamic>>` | Initializes native bindings and starts receiving IMU data. Returns a map with status, message, and code (-7 if glasses not found, 0 if successful). |
+| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz})` | `Future<HeadTrackingResponse>` | Initializes native bindings and starts receiving IMU data. Returns status, message, and code (-7 if glasses not found, 0 if successful). |
 | `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
 | `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
 
-### Data Class: `VitureSensorData`
+### Model Class: `VitureSensorData`
 
 | Field | Type | Description |
 |---|---|---|
@@ -42,6 +42,15 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `temperature` | `double?` | Sensor temperature reading, populated alongside the magnetometer fields. `null` when unavailable. |
 | `hasMagnetometer` | `bool` | Convenience getter indicating whether `magX`/`magY`/`magZ` are present. |
 | `timestamp` | `int` | Timestamp associated with the pose sample. |
+
+### Model Class: `HeadTrackingResponse`
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | `bool` | Indicates success or failure |
+| `message` | `String` | Status or error description |
+| `code` | `int` | Error code or status identifier |
+
 
 ---
 
@@ -64,9 +73,9 @@ Future<void> main() async {
 
   // 2. Claim ownership of the IMU
   try {
-    final success = await viture.startHeadTracking();
-    if (success["code"] == -7) {
-      print('Failed: Device not ready or USB error. Please also make sure no other app using the glasses is open.');
+    final HeadTrackingResponse headTrackingResponse = await viture.startHeadTracking();
+    if (headTrackingResponse.status == false || headTrackingResponse.code == -7) {
+      print(headTrackingResponse.message);
       return;
     }
 
