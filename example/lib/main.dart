@@ -78,8 +78,8 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
   Future<void> _loadInitialValues() async {
     await _runWithLoading(() async {
       try {
-        final brightness = _vitureKit.getBrightnessLevel();
-        final volume = _vitureKit.getVolumeLevel();
+        final brightness = await _vitureKit.getBrightnessLevel();
+        final volume = await _vitureKit.getVolumeLevel();
         if (!mounted) return;
         if ((brightness == null || brightness == -7) ||
             (volume == null || volume == -7)) {
@@ -246,7 +246,8 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                       ? null
                       : () async {
                           await _runWithLoading(() async {
-                            final brightness = _vitureKit.getBrightnessLevel();
+                            final brightness = await _vitureKit
+                                .getBrightnessLevel();
                             debugPrint(brightness.toString());
                             if (mounted) {
                               if (brightness == null || brightness == -7) {
@@ -268,7 +269,7 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                       ? null
                       : () async {
                           await _runWithLoading(() async {
-                            final volume = _vitureKit.getVolumeLevel();
+                            final volume = await _vitureKit.getVolumeLevel();
                             debugPrint(volume.toString());
                             if (mounted) {
                               if (volume == null || volume == -7) {

@@ -21,17 +21,20 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | Method / Property | Type | Description |
 |---|---|---|
 | `sdkVersion` | `String` | Returns the native SDK version string. |
+| `isConnected` | `bool` | Indicates whether a persistent connection to the glasses is currently open. |
 | `isHeadTrackingActive` | `bool` | Indicates whether IMU data is currently streaming. |
 | `sensorStream` | `Stream<VitureSensorData>` | Broadcast stream delivering raw and parsed orientation updates. |
 | `stateStream` | `Stream<VitureStateEvent>` | Broadcast stream delivering hardware changes. |
-| `getBrightnessLevel({bool setDarwinOpenExclusive = false})` | `int` | Reads the current brightness level from the connected device. |
-| `setBrightnessLevel(int level, {bool setDarwinOpenExclusive = false})` | `void` | Sets the brightness level for the connected device. |
-| `getVolumeLevel({bool setDarwinOpenExclusive = false})` | `int` | Reads the current volume level from the connected device. |
-| `setVolumeLevel(int level, , {bool setDarwinOpenExclusive = false})` | `void` | Sets the volume level for the connected device. |
-| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz, bool setDarwinOpenExclusive = false})` | `Future<HeadTrackingResponse>` | Initializes native bindings and starts receiving IMU data. Returns status, message, and code (-7 if glasses not found, 0 if successful). |
-| `releaseHeadTracking()` | `Future<void>` | Safely shuts down the native provider and terminates the worker isolate. |
+| `connect({bool setDarwinOpenExclusive = false})` | `Future<void>` | Opens a persistent connection to the glasses, reused by all subsequent calls until `disconnect()` or `dispose()` is called. On web, must be called from inside a user-gesture handler (e.g. a button tap). |
+| `disconnect()` | `Future<void>` | Closes the persistent connection, stopping head tracking first if active. |
+| `getBrightnessLevel({bool setDarwinOpenExclusive = false})` | `Future<int?>` | Reads the current brightness level from the connected device. |
+| `setBrightnessLevel(int level, {bool setDarwinOpenExclusive = false})` | `Future<void>` | Sets the brightness level for the connected device. |
+| `getVolumeLevel({bool setDarwinOpenExclusive = false})` | `Future<int?>` | Reads the current volume level from the connected device. |
+| `setVolumeLevel(int level, {bool setDarwinOpenExclusive = false})` | `Future<void>` | Sets the volume level for the connected device. |
+| `startHeadTracking({int imuFrequency = VitureImuFrequency.freq120Hz, bool setDarwinOpenExclusive = false})` | `Future<HeadTrackingResponse>` | Starts receiving IMU data on the shared connection. Returns status, message, and code (-7 if glasses not found, 0 if successful). |
+| `releaseHeadTracking()` | `Future<void>` | Stops IMU streaming without closing the underlying connection. |
 | `setHeadTrackingEnabled(bool enabled)` | `Future<void>` | Convenience toggle for starting or stopping head tracking. |
-| `dispose()` | `Future<void>` | Releases tracking and closes the pose controller. |
+| `dispose()` | `Future<void>` | Disconnects the device and closes the sensor and state stream controllers. |
 
 ### Model Class: `VitureSensorData`
 
@@ -60,6 +63,9 @@ Native Dart FFI bindings for the [VITURE XR Glasses SDK](https://www.viture.com/
 | `value` | `String` | The new numeric level or status. |
 
 ---
+
+> [!NOTE]  
+> For local dev, use `flutter run -d chrome --web-header Cross-Origin-Opener-Policy=same-origin --web-header Cross-Origin-Embedder-Policy=require-corp`.
 
 ## Usage Example
 

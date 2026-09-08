@@ -1,3 +1,10 @@
+## 0.2.0
+- **BREAKING:** `getBrightnessLevel()` and `getVolumeLevel()` now return `Future<int?>` instead of `int?`. Callers must `await` these calls.
+- **BREAKING:** `setBrightnessLevel()` and `setVolumeLevel()` now return `Future<void>` instead of `void`. Callers should `await` these calls to ensure the write completes before proceeding.
+- **NEW:** `connect()` opens a persistent connection to the glasses, reused by all subsequent calls until `disconnect()` or `dispose()` is called.
+- **NEW:** `disconnect()` closes the persistent connection, stopping head tracking first if active.
+- **NEW**: `Web` support.
+
 ## 0.1.5
 - New: `setDarwinOpenExclusive` argument.
 
