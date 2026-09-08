@@ -286,6 +286,15 @@ class _SensorHomeScreenState extends State<SensorHomeScreen> {
                         },
                   child: const Text('Get Volume'),
                 ),
+                ElevatedButton(
+                  onPressed: _isBusy
+                      ? null
+                      : () async {
+                          final sdkVersion = VitureKit.sdkVersion;
+                          _showErrorSnackBar("SDK Version: $sdkVersion");
+                        },
+                  child: const Text('Get SDK Version'),
+                ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -51,11 +51,7 @@ extension type PoseJS._(JSObject _) implements JSObject {
 }
 
 class VitureKit {
-  static String get sdkVersion => '2.4.0-web';
-  static int get sdkVersionMajor => 2;
-  static int get sdkVersionMinor => 4;
-  static int get sdkVersionPatch => 0;
-
+  JSObject? _mod;
   StreamController<VitureSensorData>? _sensorController;
   StreamController<VitureStateEvent>? _stateController;
 
@@ -68,6 +64,16 @@ class VitureKit {
   bool _isReleasing = false;
   bool _scriptsLoaded = false;
 
+  static String _cachedSdkVersion = '1.0.0';
+  static int _cachedSdkVersionMajor = 1;
+  static int _cachedSdkVersionMinor = 0;
+  static int _cachedSdkVersionPatch = 0;
+  static bool _sdkVersionLoaded = false;
+
+  static String get sdkVersion => _cachedSdkVersion;
+  static int get sdkVersionMajor => _cachedSdkVersionMajor;
+  static int get sdkVersionMinor => _cachedSdkVersionMinor;
+  static int get sdkVersionPatch => _cachedSdkVersionPatch;
   bool get isConnected => _isConnected;
   bool get isHeadTrackingActive => _isHeadTrackingActive;
 
@@ -117,11 +123,63 @@ class VitureKit {
     await _ensureScriptsLoaded();
 
     final modFactory = globalContext['GlassesModule'] as JSFunction;
-    final mod = await (modFactory.callAsFunction() as JSPromise).toDart;
+    final mod =
+        await (modFactory.callAsFunction() as JSPromise).toDart as JSObject;
+    _mod = mod;
 
     final deviceCtor = globalContext['__VitureGlassesDevice'] as JSFunction;
     final device = deviceCtor.callAsConstructor(mod) as GlassesDevice;
     return device;
+  }
+
+  Future<String> getSdkVersion() async {
+    if (_mod == null) {
+      await _createRawDevice();
+    }
+    final mod = _mod!;
+    final ccall = mod['ccall'] as JSFunction;
+
+    final emptyList = JSArray();
+    final ptr = (ccall.callAsFunction(
+      mod,
+      'GetVersionString'.toJS,
+      'number'.toJS,
+      emptyList,
+      emptyList,
+    ) as JSNumber).toDartInt;
+
+    final utf8ToString = mod['UTF8ToString'] as JSFunction;
+    return (utf8ToString.callAsFunction(mod, ptr.toJS) as JSString).toDart;
+  }
+
+  static Future<void>? _sdkVersionLoadingFuture;
+
+  Future<void> _loadSdkVersionIfNeeded() {
+    if (_sdkVersionLoaded) return Future.value();
+    return _sdkVersionLoadingFuture ??= () async {
+      try {
+        final version = await getSdkVersion();
+        final clean = version.split('-').first;
+        final parts = clean.split('.');
+        _cachedSdkVersion = version;
+        if (parts.isNotEmpty) {
+          _cachedSdkVersionMajor =
+              int.tryParse(parts[0]) ?? _cachedSdkVersionMajor;
+        }
+        if (parts.length > 1) {
+          _cachedSdkVersionMinor =
+              int.tryParse(parts[1]) ?? _cachedSdkVersionMinor;
+        }
+        if (parts.length > 2) {
+          _cachedSdkVersionPatch =
+              int.tryParse(parts[2]) ?? _cachedSdkVersionPatch;
+        }
+        _sdkVersionLoaded = true;
+      } catch (_) {
+      } finally {
+        _sdkVersionLoadingFuture = null;
+      }
+    }();
   }
 
   Future<void> connect() async {
@@ -138,6 +196,9 @@ class VitureKit {
       await device.connect().toDart;
       _device = device;
       _isConnected = true;
+
+      await _loadSdkVersionIfNeeded();
+
       completer.complete();
     } catch (e) {
       _device = null;
@@ -205,6 +266,7 @@ class VitureKit {
   }) => _withDevice((d) async {
     await d.setVolume(level).toDart;
   });
+
   Future<HeadTrackingResponse> startHeadTracking({
     VitureImuFrequency imuFrequency = VitureImuFrequency.freq120Hz,
     bool setDarwinOpenExclusive = false,
@@ -225,7 +287,7 @@ class VitureKit {
       _sensorController ??= StreamController<VitureSensorData>.broadcast();
       _stateController ??= StreamController<VitureStateEvent>.broadcast();
 
-      await _opQueue.then((_) async {
+      final opFuture = _opQueue.then((_) async {
         await connect();
         final device = _device;
         if (device == null) {
@@ -264,7 +326,8 @@ class VitureKit {
             )
             .toDart;
       });
-      _opQueue = _opQueue.then((_) {}, onError: (_) {});
+      _opQueue = opFuture.then((_) {}, onError: (_) {});
+      await opFuture;
 
       _isHeadTrackingActive = true;
       return HeadTrackingResponse(
@@ -327,6 +390,7 @@ class VitureKit {
     _sensorController = null;
     await _stateController?.close();
     _stateController = null;
+    _mod = null;
   }
 
   static int? fetchHidapiVitureProductIds({

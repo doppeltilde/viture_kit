@@ -1,3 +1,6 @@
+## 0.2.1
+- **FEAT**: Expose SDK Version on Web.
+
 ## 0.2.0
 - **BREAKING:** `getBrightnessLevel()` and `getVolumeLevel()` now return `Future<int?>` instead of `int?`. Callers must `await` these calls.
 - **BREAKING:** `setBrightnessLevel()` and `setVolumeLevel()` now return `Future<void>` instead of `void`. Callers should `await` these calls to ensure the write completes before proceeding.
